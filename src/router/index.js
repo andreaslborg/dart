@@ -4,10 +4,6 @@ import DartScore from '../components/DartScore.vue';
 const routes = [
   {
     path: '/',
-    redirect: '/?player=1', 
-  },
-  {
-    path: '/',
     name: 'Score',
     component: DartScore,
   }

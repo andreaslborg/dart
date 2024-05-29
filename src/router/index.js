@@ -4,7 +4,11 @@ import DartScore from '../components/DartScore.vue';
 const routes = [
   {
     path: '/',
-    redirect: '/score?player=1', // Default redirect to player 1
+    redirect: '/score?player=1', 
+  },
+  {
+    path: '/dart',
+    redirect: '/score?player=1', 
   },
   {
     path: '/score',

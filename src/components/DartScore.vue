@@ -470,6 +470,21 @@ export default {
   align-items: center;
 }
 
+@media screen and (min-width: 992px) {
+  .stats-title {
+    display: none;
+  }
+  .stats-table {
+    position: absolute;
+    top: 250px;
+    right: 20%;
+  }
+
+  .preset-scores {
+    margin-bottom: 30px;
+  }
+}
+
 .score-display {
   display: flex;
   justify-content: center;

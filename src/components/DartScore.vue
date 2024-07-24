@@ -11,7 +11,7 @@
           <p class="temp-score3 left">{{ thirdTurnScorePlayer1 }}</p>
           <p class="score">{{ totalScores.player1 }}</p>
         </div>
-        <p class="average-score">AVG {{ averageScore.player1 }}</p>
+        <p class="average-score">AVG {{ averageScore.player1 }}</p>        
         <p class="your-turn">{{ isPlayer1Turn ? 'DIN TUR' : '' }}</p>
       </div>
       <div>
@@ -44,14 +44,14 @@
            <a class="button delete" @click="deleteLastNum">SLET</a>
     </div>
     <div class="numlock-style">
-    <a class="button" v-for="num in [7,8,9,4,5,6,1,2,3]" :key="num" @click="updateCurrentScore(num)" :disabled="!isPlayer1Turn">
-      {{ num }}
-    </a>
-    <a class="button double" @click="updateCurrentScore(0)" :disabled="!isPlayer1Turn">0</a>
-    <a class="button submit" @click="submitScore">ENTER</a>
-  </div>
+      <a class="button" v-for="num in [7,8,9,4,5,6,1,2,3]" :key="num" @click="updateCurrentScore(num)" :disabled="!isPlayer1Turn">
+        {{ num }}
+      </a>
+      <a class="button double" @click="updateCurrentScore(0)" :disabled="!isPlayer1Turn">0</a>
+      <a class="button submit" @click="submitScore">ENTER</a>
+    </div>
     <!-- Predefined Score Buttons -->
-    <h2 class="config-name">Indstillinger</h2>
+    <h2 class="config-name">INDSTILLINGER</h2>
     <div class="preset-scores">
         <a class="button" @click="setPredefinedScore(201)" :disabled="!isPlayer1Turn">201</a>
         <a class="button" @click="setPredefinedScore(301)" :disabled="!isPlayer1Turn">301</a>
@@ -62,6 +62,45 @@
         <a class="button switch-turns" @click="undoLastTurn">Fortryd tur</a>
         <a class="button switch-turns" @click="resetWins">Nulstil total</a>
     </div>
+
+    <!-- Stats Table -->
+    <h2 class="stats-title">Stats</h2>
+    <table class="stats-table">
+      <colgroup>
+        <col style="width: 50%;">
+        <col style="width: 25%;">
+        <col style="width: 25%;">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>STAT</th>
+          <th>{{ player1Name }}</th>
+          <th>{{ player2Name }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>AVERAGE<br>LEG SCORE</td>
+          <td class="boldtext">{{ averageScore.player1 }}</td>
+          <td>{{ averageScore.player2 }}</td>
+        </tr>
+        <tr>
+          <td>AVERAGE<br>SET SCORE</td>
+          <td>{{ averageSetScore.player1 }}</td>
+          <td>{{ averageSetScore.player2 }}</td>
+        </tr>
+        <tr>
+          <td>HIGHEST<br>SCORE</td>
+          <td>{{ highestThreeDartScore.player1 }}</td>
+          <td>{{ highestThreeDartScore.player2 }}</td>
+        </tr>
+        <tr>
+          <td>HIGHEST<br>CHECKOUT</td>
+          <td>{{ player1HighestCheckout }}</td>
+          <td>{{ player2HighestCheckout }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </template>
 
@@ -86,8 +125,12 @@ export default {
     const player2Wins = ref(0);
     const player1Checkout = ref("");
     const player2Checkout = ref(""); 
-    const player1Scores = ref([]); // Initialize scores history for player 1
-    const player2Scores = ref([]); // Initialize scores history for player 2
+    const player1Scores = ref([]); 
+    const player2Scores = ref([]); 
+    const player1SetScores = ref([]); 
+    const player2SetScores = ref([]); 
+    const player1HighestCheckout = ref(0);
+    const player2HighestCheckout = ref(0); 
 
     const formatAverage = (avg) => {
       return avg % 1 === 0 ? avg.toString() : avg.toFixed(1);
@@ -96,6 +139,16 @@ export default {
     const averageScore = computed(() => ({
       player1: player1Scores.value.length > 0 ? formatAverage(player1Scores.value.reduce((a, b) => a + b, 0) / player1Scores.value.length) : 0,
       player2: player2Scores.value.length > 0 ? formatAverage(player2Scores.value.reduce((a, b) => a + b, 0) / player2Scores.value.length) : 0,
+    }));
+
+    const averageSetScore = computed(() => ({
+      player1: player1SetScores.value.length > 0 ? formatAverage(player1SetScores.value.reduce((a, b) => a + b, 0) / player1SetScores.value.length) : 0,
+      player2: player2SetScores.value.length > 0 ? formatAverage(player2SetScores.value.reduce((a, b) => a + b, 0) / player2SetScores.value.length) : 0,
+    }));
+
+    const highestThreeDartScore = computed(() => ({
+      player1: Math.max(...player1SetScores.value, 0),
+      player2: Math.max(...player2SetScores.value, 0),
     }));
 
     const lastTurnScorePlayer1 = computed(() => {
@@ -135,8 +188,12 @@ export default {
           player2Wins.value = data.player2Wins || 0;
           player1Checkout.value = data.player1Checkout || "";
           player2Checkout.value = data.player2Checkout || "";
-          player1Scores.value = data.player1Scores || []; // Fetch scores history for player 1
-          player2Scores.value = data.player2Scores || []; // Fetch scores history for player 2
+          player1Scores.value = data.player1Scores || []; 
+          player2Scores.value = data.player2Scores || [];
+          player1SetScores.value = data.player1SetScores || []; 
+          player2SetScores.value = data.player2SetScores || [];
+          player1HighestCheckout.value = data.player1HighestCheckout || 0;
+          player2HighestCheckout.value = data.player2HighestCheckout || 0;
         }
       });
     };
@@ -164,10 +221,12 @@ export default {
         currentScore.value = '';
         if (playerNum === '1') {
           player1Scores.value.push(0);
-          update(dbRef, { player1Scores: player1Scores.value, isPlayer1Turn: !isPlayer1Turn.value });
+          player1SetScores.value.push(0);
+          update(dbRef, { player1Scores: player1Scores.value, player1SetScores: player1SetScores.value, isPlayer1Turn: !isPlayer1Turn.value });
         } else {
           player2Scores.value.push(0);
-          update(dbRef, { player2Scores: player2Scores.value, isPlayer1Turn: !isPlayer1Turn.value });
+          player2SetScores.value.push(0);
+          update(dbRef, { player2Scores: player2Scores.value, player2SetScores: player2SetScores.value, isPlayer1Turn: !isPlayer1Turn.value });
         }
         return;
       }
@@ -192,31 +251,40 @@ export default {
           spread: 70,
           origin: { y: 0.6 }
         });
+
         const winnerKey = playerKey === 'player1' ? 'player1Wins' : 'player2Wins';
         const updatedWins = (winnerKey === 'player1Wins' ? player1Wins.value : player2Wins.value) + 1;
-        update(dbRef, { [playerKey]: newScore, [winnerKey]: updatedWins });
-        update(dbRef, { scoreboardTitle: winAnnouncement });
-        currentScore.value = '';
 
-        // Update the database with the new score
-        update(dbRef, { [playerKey]: newScore });
+        // Update the highest checkout if applicable
+        if (playerNum === '1') {
+          if (scoreInput > player1HighestCheckout.value) {
+            player1HighestCheckout.value = scoreInput;
+            update(dbRef, { player1HighestCheckout: scoreInput });
+          }
+        } else {
+          if (scoreInput > player2HighestCheckout.value) {
+            player2HighestCheckout.value = scoreInput;
+            update(dbRef, { player2HighestCheckout: scoreInput });
+          }
+        }
+
+        // Update the database with the new score and winner details
+        update(dbRef, { [playerKey]: newScore, [winnerKey]: updatedWins, scoreboardTitle: winAnnouncement });
+
         currentScore.value = '';
 
         // Add the score to the player's scores history
         if (playerNum === '1') {
           player1Scores.value.push(scoreInput);
-          update(dbRef, { player1Scores: player1Scores.value });
+          player1SetScores.value.push(scoreInput);
+          update(dbRef, { player1Scores: player1Scores.value, player1SetScores: player1SetScores.value });
         } else {
           player2Scores.value.push(scoreInput);
-          update(dbRef, { player2Scores: player2Scores.value });
+          player2SetScores.value.push(scoreInput);
+          update(dbRef, { player2Scores: player2Scores.value, player2SetScores: player2SetScores.value });
         }
 
-        if (newScore <= 170) {
-          const checkoutOption = getDartsCheckout(newScore);
-          const playerKeyCheckout = playerKey === 'player1' ? 'player1Checkout' : 'player2Checkout';
-          update(dbRef, { [playerKeyCheckout]: checkoutOption });
-        }
-
+        return;
       } else {
         // Update the database with the new score
         update(dbRef, { [playerKey]: newScore });
@@ -231,6 +299,16 @@ export default {
           update(dbRef, { player2Scores: player2Scores.value });
         }
 
+        // Update the set average
+        if (playerNum === '1') {
+          player1SetScores.value.push(player1Scores.value.reduce((a, b) => a + b, 0) / player1Scores.value.length);
+          update(dbRef, { player1SetScores: player1SetScores.value });
+        } else {
+          player2SetScores.value.push(player2Scores.value.reduce((a, b) => a + b, 0) / player2Scores.value.length);
+          update(dbRef, { player2SetScores: player2SetScores.value });
+        }
+
+        // Update the highest checkout score if applicable
         if (newScore <= 170) {
           const checkoutOption = getDartsCheckout(newScore);
           const playerKeyCheckout = playerKey === 'player1' ? 'player1Checkout' : 'player2Checkout';
@@ -250,8 +328,8 @@ export default {
           isPlayer1Turn: true, 
           player1: score, 
           player2: score, 
-          player1Scores: [], // Reset scores history for player 1
-          player2Scores: [], // Reset scores history for player 2
+          player1Scores: [],
+          player2Scores: [], 
           scoreboardTitle: 'Borg Dart' 
         });
       }
@@ -280,6 +358,10 @@ export default {
           player2: 501, 
           player1Scores: [], 
           player2Scores: [],
+          player1SetScores: [], 
+          player2SetScores: [],
+          player1HighestCheckout: 0,
+          player2HighestCheckout: 0,
           scoreboardTitle: 'Borg Dart' 
         });
       }
@@ -303,12 +385,14 @@ export default {
           if (playerNum === '1') {
             totalScores.value.player1 += lastTurnScore;
             lastTurnScorePlayer1.value = 0;
-            player1Scores.value.pop(); // Remove the last score from the history
+            player1Scores.value.pop(); 
+            player1SetScores.value.pop(); 
             update(dbRef, { player1Scores: player1Scores.value });
           } else {
             totalScores.value.player2 += lastTurnScore;
             lastTurnScorePlayer2.value = 0;
-            player2Scores.value.pop(); // Remove the last score from the history
+            player2Scores.value.pop();
+            player2SetScores.value.pop();
             update(dbRef, { player2Scores: player2Scores.value });
           }
           // Optionally switch turns back
@@ -361,12 +445,15 @@ export default {
       undoLastTurn,
       player1Checkout,
       player2Checkout,
+      player1HighestCheckout,
+      player2HighestCheckout,
       averageScore,
+      averageSetScore,
+      highestThreeDartScore
     };
   }
 };
 </script>
-
 
 <style scoped>
 .scoreboard-title {
@@ -544,7 +631,6 @@ input::-webkit-inner-spin-button {
 }
 
 .preset-scores {
-  margin-bottom: 30px;
   display: grid;
   grid-template-columns: repeat(4, 1fr); 
   justify-content: center;
@@ -580,6 +666,54 @@ input::-webkit-inner-spin-button {
 .submit {
   text-transform: uppercase;
   font-weight: 700;
+}
+
+.stats-title {
+  color: #f0f0f0;
+  font-size: 24px;
+  text-transform: uppercase;
+  margin: 20px 0 0 0;
+  overflow: hidden;
+}
+
+.stats-table {
+  width: 300px;
+  margin-top: 10px;
+  margin-bottom: 30px;
+  border: 1px solid white;
+  border-radius: 4px;
+  border-spacing: 0;
+  border-collapse: separate;
+}
+
+.stats-table th {
+  color: #f0f0f0;
+  font-size: 16px;
+  font-weight: 800;
+  padding: 8px;
+  border: 1px solid white;
+}
+
+.stats-table td {
+  color: #f0f0f0;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 2px;
+  border: 1px solid white;
+}
+
+.stats-table td {
+  text-align: center;
+  color: #f0f0f0;
+}
+
+.stats-table colgroup col:first-child {
+  width: 50%;
+}
+
+.stats-table colgroup col:nth-child(2),
+.stats-table colgroup col:nth-child(3) {
+  width: 25%;
 }
 
 </style>

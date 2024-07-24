@@ -407,6 +407,7 @@ export default {
   margin-top: 0px;
   margin-bottom: 0;
   font-weight: 900;
+  text-decoration: none;
 }
 
 .player .checkout-option {
@@ -431,35 +432,34 @@ export default {
 }
 
 .temp-score {
-  font-size: 20px;
   margin: 0;
-  font-weight: 900;
   color: grey;
-  position: absolute;
 }
 
 .temp-score2 {
-  font-size: 20px;
   margin: 50px 0 0 0;
-  font-weight: 900;
   color: rgba(128, 128, 128, 0.5);
-  position: absolute;
 }
 
 .temp-score3 {
-  font-size: 20px;
   margin: 100px 0 0 0;
-  font-weight: 900;
   color: rgba(128, 128, 128, 0.25);
-  position: absolute;
 }
 
 .temp-score.right, .temp-score2.right, .temp-score3.right {
+  font-size: 20px;
+  font-weight: 900;
   margin-left: 130px;
+  text-decoration: none;
+  position: absolute;
 }
 
 .temp-score.left, .temp-score2.left, .temp-score3.left {
+  font-size: 20px;
+  font-weight: 900;
   margin-right: 130px;
+  text-decoration: none;
+  position: absolute;
 }
 
 

@@ -7,8 +7,11 @@
         <p class="checkout-option">{{ player1Checkout }}</p>
         <div class="score-container">
           <p class="temp-score left">{{ lastTurnScorePlayer1 }}</p>
+          <p class="temp-score2 left">{{ secondTurnScorePlayer1 }}</p>
+          <p class="temp-score3 left">{{ thirdTurnScorePlayer1 }}</p>
           <p class="score">{{ totalScores.player1 }}</p>
         </div>
+        <p class="average-score">AVG {{ averageScore.player1 }}</p>
         <p class="your-turn">{{ isPlayer1Turn ? 'DIN TUR' : '' }}</p>
       </div>
       <div>
@@ -24,7 +27,10 @@
         <div class="score-container">
           <p class="score">{{ totalScores.player2 }}</p>
           <p class="temp-score right">{{ lastTurnScorePlayer2 }}</p>
+          <p class="temp-score2 right">{{ secondTurnScorePlayer2 }}</p>
+          <p class="temp-score3 right">{{ thirdTurnScorePlayer2 }}</p>
         </div>
+        <p class="average-score">AVG {{ averageScore.player2 }}</p>
         <p class="your-turn">{{ !isPlayer1Turn ? 'DIN TUR' : '' }}</p>
       </div>
     </div>
@@ -61,7 +67,7 @@
 
 <script>
 import getDartsCheckout from '@/getDartsCheckout'
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { getDatabase, ref as firebaseRef, onValue, update } from 'firebase/database';
 import confetti from 'canvas-confetti';
@@ -78,10 +84,43 @@ export default {
     const player2Name = ref('Player 2'); // Initialize player 2 name
     const player1Wins = ref(0);
     const player2Wins = ref(0);
-    const lastTurnScorePlayer1 = ref(0);
-    const lastTurnScorePlayer2 = ref(0); 
     const player1Checkout = ref("");
     const player2Checkout = ref(""); 
+    const player1Scores = ref([]); // Initialize scores history for player 1
+    const player2Scores = ref([]); // Initialize scores history for player 2
+
+    const formatAverage = (avg) => {
+      return avg % 1 === 0 ? avg.toString() : avg.toFixed(1);
+    };
+
+    const averageScore = computed(() => ({
+      player1: player1Scores.value.length > 0 ? formatAverage(player1Scores.value.reduce((a, b) => a + b, 0) / player1Scores.value.length) : 0,
+      player2: player2Scores.value.length > 0 ? formatAverage(player2Scores.value.reduce((a, b) => a + b, 0) / player2Scores.value.length) : 0,
+    }));
+
+    const lastTurnScorePlayer1 = computed(() => {
+      return player1Scores.value.length > 0 ? player1Scores.value[player1Scores.value.length - 1] : 0;
+    });
+
+    const lastTurnScorePlayer2 = computed(() => {
+      return player2Scores.value.length > 0 ? player2Scores.value[player2Scores.value.length - 1] : 0;
+    });
+
+    const secondTurnScorePlayer1 = computed(() => {
+      return player1Scores.value.length > 0 ? player1Scores.value[player1Scores.value.length - 2] : "";
+    });
+
+    const secondTurnScorePlayer2 = computed(() => {
+      return player2Scores.value.length > 0 ? player2Scores.value[player2Scores.value.length - 2] : "";
+    });
+
+    const thirdTurnScorePlayer1 = computed(() => {
+      return player1Scores.value.length > 0 ? player1Scores.value[player1Scores.value.length - 3] : "";
+    });
+
+    const thirdTurnScorePlayer2 = computed(() => {
+      return player2Scores.value.length > 0 ? player2Scores.value[player2Scores.value.length - 3] : "";
+    });
 
     const fetchScores = () => {
       onValue(dbRef, (snapshot) => {
@@ -94,10 +133,10 @@ export default {
           player2Name.value = data.player2Name || 'Player 2';
           player1Wins.value = data.player1Wins || 0;
           player2Wins.value = data.player2Wins || 0;
-          lastTurnScorePlayer1.value = data.lastTurnScorePlayer1 || 0; 
-          lastTurnScorePlayer2.value = data.lastTurnScorePlayer2 || 0;
           player1Checkout.value = data.player1Checkout || "";
           player2Checkout.value = data.player2Checkout || "";
+          player1Scores.value = data.player1Scores || []; // Fetch scores history for player 1
+          player2Scores.value = data.player2Scores || []; // Fetch scores history for player 2
         }
       });
     };
@@ -107,16 +146,22 @@ export default {
     }
 
     const submitScore = () => {
-      if ((route.query.player === '1' && !isPlayer1Turn.value) || (route.query.player === '2' && isPlayer1Turn.value)) {
+      const playerNum = route.query.player;
+      if (!playerNum || (playerNum !== '1' && playerNum !== '2')) {
+        alert("Invalid player number!");
+        return;
+      }
+
+      if ((playerNum === '1' && !isPlayer1Turn.value) || (playerNum === '2' && isPlayer1Turn.value)) {
         alert("Ikke din tur klovn!");
         return;
       }
+      
       const scoreInput = parseInt(currentScore.value);
 
       // If nothing is inputted, just switch turns
       if (isNaN(scoreInput)) {
         currentScore.value = '';
-        update(dbRef, { isPlayer1Turn: !isPlayer1Turn.value });
         return;
       }
 
@@ -126,7 +171,7 @@ export default {
         return;
       }
 
-      const playerKey = `player${route.query.player}`;
+      const playerKey = `player${playerNum}`;
       let newScore = totalScores.value[playerKey] - scoreInput;
 
       if (newScore < 0) {
@@ -134,7 +179,7 @@ export default {
         currentScore.value = '';
         return;
       } else if (newScore === 0) {
-        const winAnnouncement = `${route.query.player === '1' ? player1Name.value : player2Name.value} vandt!`;
+        const winAnnouncement = `${playerNum === '1' ? player1Name.value : player2Name.value} vandt!`;
         confetti({
           particleCount: 100,
           spread: 70,
@@ -145,15 +190,41 @@ export default {
         update(dbRef, { [playerKey]: newScore, [winnerKey]: updatedWins });
         update(dbRef, { scoreboardTitle: winAnnouncement });
         currentScore.value = '';
-      } else {
-        const lastTurnScoreKey = `lastTurnScorePlayer${route.query.player}`;
-        // Update the database with the new score and the last turn score
-        update(dbRef, { [lastTurnScoreKey]: scoreInput });
-        // Use 'update' to change the specific player's score
+        
+        // Update the database with the new score
         update(dbRef, { [playerKey]: newScore });
         currentScore.value = '';
 
-        if ( newScore <= 170 ) {
+        // Add the score to the player's scores history
+        if (playerNum === '1') {
+          player1Scores.value.push(scoreInput);
+          update(dbRef, { player1Scores: player1Scores.value });
+        } else {
+          player2Scores.value.push(scoreInput);
+          update(dbRef, { player2Scores: player2Scores.value });
+        }
+
+        if (newScore <= 170) {
+          const checkoutOption = getDartsCheckout(newScore);
+          const playerKeyCheckout = playerKey === 'player1' ? 'player1Checkout' : 'player2Checkout';
+          update(dbRef, { [playerKeyCheckout]: checkoutOption });
+        }
+
+      } else {
+        // Update the database with the new score
+        update(dbRef, { [playerKey]: newScore });
+        currentScore.value = '';
+
+        // Add the score to the player's scores history
+        if (playerNum === '1') {
+          player1Scores.value.push(scoreInput);
+          update(dbRef, { player1Scores: player1Scores.value });
+        } else {
+          player2Scores.value.push(scoreInput);
+          update(dbRef, { player2Scores: player2Scores.value });
+        }
+
+        if (newScore <= 170) {
           const checkoutOption = getDartsCheckout(newScore);
           const playerKeyCheckout = playerKey === 'player1' ? 'player1Checkout' : 'player2Checkout';
           update(dbRef, { [playerKeyCheckout]: checkoutOption });
@@ -166,12 +237,16 @@ export default {
 
     const setPredefinedScore = (score) => {
       if (window.confirm(`Nulstil score til ${score}. Er du sikker?`)) {
-        update(dbRef, { player1Checkout: "" });
-        update(dbRef, { player2Checkout: "" });
-        update(dbRef, { isPlayer1Turn: true });
-        update(dbRef, { lastTurnScorePlayer1: 0, lastTurnScorePlayer2: 0 });
-        update(dbRef, { player1: score, player2: score });
-        update(dbRef, { scoreboardTitle: 'Borg Dart' });
+        update(dbRef, { 
+          player1Checkout: "", 
+          player2Checkout: "", 
+          isPlayer1Turn: true, 
+          player1: score, 
+          player2: score, 
+          player1Scores: [], // Reset scores history for player 1
+          player2Scores: [], // Reset scores history for player 2
+          scoreboardTitle: 'Borg Dart' 
+        });
       }
     };
 
@@ -182,7 +257,24 @@ export default {
 
     const resetWins = () => {
       if (window.confirm(`Er du sikker på at du vil nulstille total score?`)) {
-        update(dbRef, { player1Wins: 0,  player2Wins: 0});
+        update(dbRef, { 
+          player1Wins: 0,  
+          player2Wins: 0,
+          player1Checkout: "", 
+          player2Checkout: "", 
+          isPlayer1Turn: true, 
+          lastTurnScorePlayer1: 0, 
+          lastTurnScorePlayer2: 0,
+          secondTurnScorePlayer1: "", 
+          secondTurnScorePlayer2: "",
+          thirdTurnScorePlayer1: "", 
+          thirdTurnScorePlayer2: "",   
+          player1: 501, 
+          player2: 501, 
+          player1Scores: [], 
+          player2Scores: [],
+          scoreboardTitle: 'Borg Dart' 
+        });
       }
     };
 
@@ -204,9 +296,13 @@ export default {
           if (playerNum === '1') {
             totalScores.value.player1 += lastTurnScore;
             lastTurnScorePlayer1.value = 0;
+            player1Scores.value.pop(); // Remove the last score from the history
+            update(dbRef, { player1Scores: player1Scores.value });
           } else {
             totalScores.value.player2 += lastTurnScore;
             lastTurnScorePlayer2.value = 0;
+            player2Scores.value.pop(); // Remove the last score from the history
+            update(dbRef, { player2Scores: player2Scores.value });
           }
           // Optionally switch turns back
           isPlayer1Turn.value = !isPlayer1Turn.value;
@@ -251,9 +347,14 @@ export default {
       resetWins,
       lastTurnScorePlayer1,
       lastTurnScorePlayer2,
+      secondTurnScorePlayer1,
+      secondTurnScorePlayer2,
+      thirdTurnScorePlayer1,
+      thirdTurnScorePlayer2,
       undoLastTurn,
       player1Checkout,
       player2Checkout,
+      averageScore,
     };
   }
 };
@@ -309,6 +410,13 @@ export default {
   color: #aaaaaa;
 }
 
+.player .average-score {
+  font-size: 12px;
+  font-weight: 900;
+  margin: -5px 0px 5px 0px;
+  color: #aaaaaa;
+}
+
 .score-container {
   display: flex;
   align-items: center;
@@ -317,17 +425,33 @@ export default {
 
 .temp-score {
   font-size: 20px;
-  margin: 12px 0 0 0;
+  margin: 0;
   font-weight: 900;
   color: grey;
   position: absolute;
 }
 
-.temp-score.right {
+.temp-score2 {
+  font-size: 20px;
+  margin: 50px 0 0 0;
+  font-weight: 900;
+  color: rgba(128, 128, 128, 0.5);
+  position: absolute;
+}
+
+.temp-score3 {
+  font-size: 20px;
+  margin: 100px 0 0 0;
+  font-weight: 900;
+  color: rgba(128, 128, 128, 0.25);
+  position: absolute;
+}
+
+.temp-score.right, .temp-score2.right, .temp-score3.right {
   margin-left: 130px;
 }
 
-.temp-score.left {
+.temp-score.left, .temp-score2.left, .temp-score3.left {
   margin-right: 130px;
 }
 

@@ -162,6 +162,8 @@ export default {
       // If nothing is inputted, just switch turns
       if (isNaN(scoreInput)) {
         currentScore.value = '';
+        const lastTurnScoreKey = `lastTurnScorePlayer${playerNum}`;
+        update(dbRef, { [lastTurnScoreKey]: 0, isPlayer1Turn: !isPlayer1Turn.value });
         return;
       }
 
@@ -190,7 +192,7 @@ export default {
         update(dbRef, { [playerKey]: newScore, [winnerKey]: updatedWins });
         update(dbRef, { scoreboardTitle: winAnnouncement });
         currentScore.value = '';
-        
+
         // Update the database with the new score
         update(dbRef, { [playerKey]: newScore });
         currentScore.value = '';

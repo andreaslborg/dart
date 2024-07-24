@@ -162,8 +162,13 @@ export default {
       // If nothing is inputted, just switch turns
       if (isNaN(scoreInput)) {
         currentScore.value = '';
-        const lastTurnScoreKey = `lastTurnScorePlayer${playerNum}`;
-        update(dbRef, { [lastTurnScoreKey]: 0, isPlayer1Turn: !isPlayer1Turn.value });
+        if (playerNum === '1') {
+          player1Scores.value.push(0);
+          update(dbRef, { player1Scores: player1Scores.value, isPlayer1Turn: !isPlayer1Turn.value });
+        } else {
+          player2Scores.value.push(0);
+          update(dbRef, { player2Scores: player2Scores.value, isPlayer1Turn: !isPlayer1Turn.value });
+        }
         return;
       }
 

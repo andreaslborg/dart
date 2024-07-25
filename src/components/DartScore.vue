@@ -104,6 +104,11 @@
           <td>{{ player1HighestCheckout }}</td>
           <td>{{ player2HighestCheckout }}</td>
         </tr>
+        <tr>
+          <td>LOWEST<br>CHECKOUT</td>
+          <td>{{ player1LowestCheckout }}</td>
+          <td>{{ player2LowestCheckout }}</td>
+        </tr>
       </tbody>
     </table>
   </div>
@@ -135,34 +140,33 @@ export default {
     const player1SetScores = ref([]); 
     const player2SetScores = ref([]); 
     const player1HighestCheckout = ref(0);
-    const player2HighestCheckout = ref(0); 
+    const player2HighestCheckout = ref(0);
+    const player1LowestCheckout = ref(NaN);
+    const player2LowestCheckout = ref(NaN); 
 
     const formatAverage = (avg) => {
       return avg % 1 === 0 ? avg.toString() : avg.toFixed(1);
     };
 
     const averageScore = computed(() => ({
-      player1: player1Scores.value.length > 0 ? formatAverage(player1Scores.value.reduce((a, b) => a + b, 0) / player1Scores.value.length) : 0,
-      player2: player2Scores.value.length > 0 ? formatAverage(player2Scores.value.reduce((a, b) => a + b, 0) / player2Scores.value.length) : 0,
+      player1: player1Scores.value.length > 0 ? formatAverage(player1Scores.value.reduce((a, b) => a + b, 0) / player1Scores.value.length) : null,
+      player2: player2Scores.value.length > 0 ? formatAverage(player2Scores.value.reduce((a, b) => a + b, 0) / player2Scores.value.length) : null,
     }));
 
     const averageSetScore = computed(() => ({
-      player1: player1SetScores.value.length > 0 ? formatAverage(player1SetScores.value.reduce((a, b) => a + b, 0) / player1SetScores.value.length) : 0,
-      player2: player2SetScores.value.length > 0 ? formatAverage(player2SetScores.value.reduce((a, b) => a + b, 0) / player2SetScores.value.length) : 0,
+      player1: player1SetScores.value.length > 0 ? formatAverage(player1SetScores.value.reduce((a, b) => a + b, 0) / player1SetScores.value.length) : null,
+      player2: player2SetScores.value.length > 0 ? formatAverage(player2SetScores.value.reduce((a, b) => a + b, 0) / player2SetScores.value.length) : null,
     }));
 
     const highestThreeDartScore = computed(() => ({
-      player1: Math.max(...player1SetScores.value, 0),
-      player2: Math.max(...player2SetScores.value, 0),
+      player1: player1SetScores.value.length > 0 ? Math.max(...player1SetScores.value, 0) : null,
+      player2: player2SetScores.value.length > 0 ? Math.max(...player2SetScores.value, 0) : null,
     }));
-
-    console.log('player1SetScores', player1SetScores);
     
     const lowestThreeDartScore = computed(() => ({
-  player1: player1SetScores.value.length > 0 ? Math.min(...player1SetScores.value.filter(score => score >= 0)) : '0',
-  player2: player2SetScores.value.length > 0 ? Math.min(...player2SetScores.value.filter(score => score >= 0)) : '0',
-}));
-    console.log('lowestThreeDartScore', lowestThreeDartScore);
+      player1: player1SetScores.value.length > 0 ? Math.min(...player1SetScores.value.filter(score => score >= 0)) : null,
+      player2: player2SetScores.value.length > 0 ? Math.min(...player2SetScores.value.filter(score => score >= 0)) : null,
+    }));
     
     const lastTurnScorePlayer1 = computed(() => {
       return player1Scores.value.length > 0 ? player1Scores.value[player1Scores.value.length - 1] : 0;
@@ -205,8 +209,10 @@ export default {
           player2Scores.value = data.player2Scores || [];
           player1SetScores.value = data.player1SetScores || []; 
           player2SetScores.value = data.player2SetScores || [];
-          player1HighestCheckout.value = data.player1HighestCheckout || 0;
-          player2HighestCheckout.value = data.player2HighestCheckout || 0;
+          player1HighestCheckout.value = data.player1HighestCheckout || null;
+          player2HighestCheckout.value = data.player2HighestCheckout || null;
+          player1LowestCheckout.value = data.player1LowestCheckout || null;
+          player2LowestCheckout.value = data.player2LowestCheckout || null;
         }
       });
     };
@@ -274,10 +280,18 @@ export default {
             player1HighestCheckout.value = scoreInput;
             update(dbRef, { player1HighestCheckout: scoreInput });
           }
+          if (scoreInput < player1LowestCheckout.value || player1LowestCheckout.value == null) {
+            player1LowestCheckout.value = scoreInput;
+            update(dbRef, { player1LowestCheckout: scoreInput });
+          }
         } else {
           if (scoreInput > player2HighestCheckout.value) {
             player2HighestCheckout.value = scoreInput;
             update(dbRef, { player2HighestCheckout: scoreInput });
+          }
+          if (scoreInput < player2LowestCheckout.value || player2LowestCheckout.value == null) {
+            player2LowestCheckout.value = scoreInput;
+            update(dbRef, { player2LowestCheckout: scoreInput });
           }
         }
 
@@ -366,8 +380,10 @@ export default {
           player2Scores: [],
           player1SetScores: [], 
           player2SetScores: [],
-          player1HighestCheckout: 0,
-          player2HighestCheckout: 0,
+          player1HighestCheckout: null,
+          player2HighestCheckout: null,
+          player1LowestCheckout: null,
+          player2LowestCheckout: null,
           scoreboardTitle: 'Borg Dart' 
         });
       }
@@ -453,6 +469,8 @@ export default {
       player2Checkout,
       player1HighestCheckout,
       player2HighestCheckout,
+      player1LowestCheckout,
+      player2LowestCheckout,
       averageScore,
       averageSetScore,
       highestThreeDartScore,

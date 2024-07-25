@@ -95,6 +95,11 @@
           <td>{{ highestThreeDartScore.player2 }}</td>
         </tr>
         <tr>
+          <td>LOWEST<br>SCORE</td>
+          <td>{{ lowestThreeDartScore.player1 }}</td>
+          <td>{{ lowestThreeDartScore.player2 }}</td>
+        </tr>
+        <tr>
           <td>HIGHEST<br>CHECKOUT</td>
           <td>{{ player1HighestCheckout }}</td>
           <td>{{ player2HighestCheckout }}</td>
@@ -151,6 +156,14 @@ export default {
       player2: Math.max(...player2SetScores.value, 0),
     }));
 
+    console.log('player1SetScores', player1SetScores);
+    
+    const lowestThreeDartScore = computed(() => ({
+  player1: player1SetScores.value.length > 0 ? Math.min(...player1SetScores.value.filter(score => score >= 0)) : '0',
+  player2: player2SetScores.value.length > 0 ? Math.min(...player2SetScores.value.filter(score => score >= 0)) : '0',
+}));
+    console.log('lowestThreeDartScore', lowestThreeDartScore);
+    
     const lastTurnScorePlayer1 = computed(() => {
       return player1Scores.value.length > 0 ? player1Scores.value[player1Scores.value.length - 1] : 0;
     });
@@ -293,20 +306,13 @@ export default {
         // Add the score to the player's scores history
         if (playerNum === '1') {
           player1Scores.value.push(scoreInput);
-          update(dbRef, { player1Scores: player1Scores.value });
+          player1SetScores.value.push(scoreInput);
+          update(dbRef, { player1Scores: player1Scores.value, player1SetScores: player1SetScores.value });
         } else {
           player2Scores.value.push(scoreInput);
-          update(dbRef, { player2Scores: player2Scores.value });
-        }
-
-        // Update the set average
-        if (playerNum === '1') {
-          player1SetScores.value.push(player1Scores.value.reduce((a, b) => a + b, 0) / player1Scores.value.length);
-          update(dbRef, { player1SetScores: player1SetScores.value });
-        } else {
-          player2SetScores.value.push(player2Scores.value.reduce((a, b) => a + b, 0) / player2Scores.value.length);
-          update(dbRef, { player2SetScores: player2SetScores.value });
-        }
+          player2SetScores.value.push(scoreInput);
+          update(dbRef, { player2Scores: player2Scores.value, player2SetScores: player2SetScores.value  });
+        }  
 
         // Update the highest checkout score if applicable
         if (newScore <= 170) {
@@ -449,7 +455,8 @@ export default {
       player2HighestCheckout,
       averageScore,
       averageSetScore,
-      highestThreeDartScore
+      highestThreeDartScore,
+      lowestThreeDartScore
     };
   }
 };

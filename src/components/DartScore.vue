@@ -81,13 +81,18 @@
       <tbody>
         <tr>
           <td>AVERAGE<br>LEG SCORE</td>
-          <td class="boldtext">{{ averageScore.player1 }}</td>
+          <td>{{ averageScore.player1 }}</td>
           <td>{{ averageScore.player2 }}</td>
         </tr>
         <tr>
           <td>AVERAGE<br>SET SCORE</td>
           <td>{{ averageSetScore.player1 }}</td>
           <td>{{ averageSetScore.player2 }}</td>
+        </tr>
+        <tr>
+          <td>AVERAGE<br>LEG 9 DART</td>
+          <td>{{ firstNineDartSetScore.player1 }}</td>
+          <td>{{ firstNineDartSetScore.player2 }}</td>
         </tr>
         <tr>
           <td>HIGHEST<br>SCORE</td>
@@ -157,6 +162,28 @@ export default {
       player1: player1SetScores.value.length > 0 ? formatAverage(player1SetScores.value.reduce((a, b) => a + b, 0) / player1SetScores.value.length) : null,
       player2: player2SetScores.value.length > 0 ? formatAverage(player2SetScores.value.reduce((a, b) => a + b, 0) / player2SetScores.value.length) : null,
     }));
+
+    const firstNineDartSetScore = computed(() => {
+      const calculateFirstNineAverage = (scores) => {
+        const totalLegs = Math.floor(scores.length / 3);
+        if (totalLegs === 0) return null;
+        
+        const firstNineScores = scores.slice(0, totalLegs * 3).reduce((acc, score, index) => {
+          if (index % 3 === 0) acc.push(0); // Start a new leg
+          acc[acc.length - 1] += score; // Add the score to the current leg
+          return acc;
+        }, []);
+
+        const firstNineAverages = firstNineScores.map(score => score / 3); // Calculate the average for each leg
+        const overallFirstNineAverage = firstNineAverages.reduce((a, b) => a + b, 0) / firstNineAverages.length;
+        return formatAverage(overallFirstNineAverage);
+      };
+
+      return {
+        player1: calculateFirstNineAverage(player1Scores.value),
+        player2: calculateFirstNineAverage(player2Scores.value),
+      };
+    });
 
     const highestThreeDartScore = computed(() => ({
       player1: player1SetScores.value.length > 0 ? Math.max(...player1SetScores.value, 0) : null,
@@ -395,10 +422,10 @@ export default {
       const lastTurnScoreKey = `lastTurnScorePlayer${playerNum}`;
       const lastTurnScore = playerNum === '1' ? lastTurnScorePlayer1.value : lastTurnScorePlayer2.value;
       if (window.confirm(`Fortryd ${lastTurnScore} point. Er du sikker?`)) {        
-        if (lastTurnScore === 0) {
+        /*if (lastTurnScore === 0) {
           alert("Ingen tidligere score at fortryde.");
           return;
-        }
+        }*/
         update(dbRef, {
           [playerKey]: totalScores.value[playerKey] + lastTurnScore,
           [lastTurnScoreKey]: 0
@@ -473,6 +500,7 @@ export default {
       player2LowestCheckout,
       averageScore,
       averageSetScore,
+      firstNineDartSetScore,
       highestThreeDartScore,
       lowestThreeDartScore
     };

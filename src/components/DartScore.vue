@@ -164,24 +164,18 @@ export default {
     }));
 
     const firstNineDartSetScore = computed(() => {
-      const calculateFirstNineAverage = (scores) => {
-        const totalLegs = Math.floor(scores.length / 3);
-        if (totalLegs === 0) return null;
+      const calculateFirstThreeAverage = (scores) => {
+        if (scores.length < 3) return null;
         
-        const firstNineScores = scores.slice(0, totalLegs * 3).reduce((acc, score, index) => {
-          if (index % 3 === 0) acc.push(0); // Start a new leg
-          acc[acc.length - 1] += score; // Add the score to the current leg
-          return acc;
-        }, []);
-
-        const firstNineAverages = firstNineScores.map(score => score / 3); // Calculate the average for each leg
-        const overallFirstNineAverage = firstNineAverages.reduce((a, b) => a + b, 0) / firstNineAverages.length;
-        return formatAverage(overallFirstNineAverage);
+        const firstThreeScores = scores.slice(0, 3);
+        const average = firstThreeScores.reduce((acc, score) => acc + score, 0) / 3;
+        
+        return formatAverage(average);
       };
 
       return {
-        player1: calculateFirstNineAverage(player1Scores.value),
-        player2: calculateFirstNineAverage(player2Scores.value),
+        player1: calculateFirstThreeAverage(player1Scores.value),
+        player2: calculateFirstThreeAverage(player2Scores.value),
       };
     });
 

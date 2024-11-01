@@ -523,8 +523,8 @@ export default {
   }
   .stats-table {
     position: absolute;
-    top: 250px;
-    right: 20%;
+    top: 240px;
+    right: 10%;
   }
 
   .preset-scores {
@@ -549,6 +549,11 @@ export default {
   font-size: 28px;
   margin-top: 15px;
   margin-bottom: 0;
+}
+
+.player .name:hover {
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .player .score {
@@ -629,7 +634,7 @@ export default {
 }
 
 #scoreInput {
-  margin-bottom: 10px;
+  margin-bottom: 0px;
   font-size: 30px;
   font-weight: 700;
   color: #f0f0f0;
@@ -638,6 +643,8 @@ export default {
   border: 0;
   text-transform: uppercase;
   grid-column: span 2;
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
 
 input::-webkit-outer-spin-button,
@@ -653,29 +660,34 @@ input::-webkit-inner-spin-button {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  width: 300px;
+  width: 100%;
+  max-width: 500px;
   padding-top: 8px;
   padding-bottom: 8px;
 }
 
 .numlock-style {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* Creates a 3-column grid */
-  gap: 8px; /* Adjust gap as needed */
-  width: 300px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 500px;
 }
 
 .button {
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 20px 10px;
   font-size: 20px;
-  display: inline-block; /* Or 'block' depending on your layout needs */
+  display: inline-block;
   text-align: center;
-  text-decoration: none; /* Removes underline from links */
-  cursor: pointer; /* Ensures the cursor changes to a pointer */
-  border: 1px solid transparent; /* Optional: for styling purposes */
-  border-radius: 4px; /* Optional: for rounded corners */
-  background-color: #f0f0f0; /* Optional: background color */
-  color: #000; /* Text color */
+  text-decoration: none; 
+  cursor: pointer; 
+  border-radius: 4px;
+  color: white;
 }
 
 .delete {
@@ -686,10 +698,9 @@ input::-webkit-inner-spin-button {
   font-size: 18px;
 }
 
-/* Hover effect */
 .button:hover {
-  background-color: #e0e0e0; /* Darker shade on hover */
-  border-color: #d0d0d0; /* Optional: change border color on hover */
+  background-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .preset-scores {
@@ -697,7 +708,8 @@ input::-webkit-inner-spin-button {
   grid-template-columns: repeat(4, 1fr); 
   justify-content: center;
   gap: 8px;
-  width: 300px;
+  width: 100%;
+  max-width: 500px;
 }
 
 .config-name {
@@ -718,11 +730,11 @@ input::-webkit-inner-spin-button {
 .preset-scores .button {
   padding: 10px 0;
   height: 25px;
-  width: 68px;
+  width: 100%;
 }
 
 .double {
-  grid-column: span 2; /* Makes the element span two columns */
+  grid-column: span 2;
 }
 
 .submit {
@@ -739,13 +751,18 @@ input::-webkit-inner-spin-button {
 }
 
 .stats-table {
-  width: 300px;
+  width: 100%;
+  max-width: 500px;
   margin-top: 10px;
   margin-bottom: 30px;
-  border: 1px solid white;
-  border-radius: 4px;
   border-spacing: 0;
   border-collapse: separate;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .stats-table th {
@@ -753,7 +770,6 @@ input::-webkit-inner-spin-button {
   font-size: 16px;
   font-weight: 800;
   padding: 8px;
-  border: 1px solid white;
 }
 
 .stats-table td {
@@ -761,7 +777,6 @@ input::-webkit-inner-spin-button {
   font-size: 14px;
   font-weight: 800;
   padding: 2px;
-  border: 1px solid white;
 }
 
 .stats-table td {
@@ -770,12 +785,12 @@ input::-webkit-inner-spin-button {
 }
 
 .stats-table colgroup col:first-child {
-  width: 50%;
+  width: 40%;
 }
 
 .stats-table colgroup col:nth-child(2),
 .stats-table colgroup col:nth-child(3) {
-  width: 25%;
+  width: 30%;
 }
 
 </style>

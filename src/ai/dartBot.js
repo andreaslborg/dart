@@ -52,13 +52,13 @@ export function scoreAt(x, y) {
 
 // ---------------------------------------------------------------- levels ---
 
-// sigma: normal spread in mm. badRate: share of darts thrown badly.
-// badSigma: spread of a bad dart. Calibrated by simulation (see scripts/calibrate).
+// sigma: normal spread in mm. doubleFactor: extra spread when aiming at a double.
+// badRate: share of darts thrown badly. badSigma: spread of a bad dart. Calibrated by simulation (see scripts/calibrate).
 export const LEVELS = {
-  begynder: { key: 'begynder', name: 'Begynder', sigma: 25.8, badRate: 0.15, badSigma: 90, target: 30 },
-  pub: { key: 'pub', name: 'Pub', sigma: 16.8, badRate: 0.12, badSigma: 65, target: 45 },
-  liga: { key: 'liga', name: 'Liga', sigma: 12.4, badRate: 0.09, badSigma: 50, target: 60 },
-  pro: { key: 'pro', name: 'Pro', sigma: 7.2, badRate: 0.06, badSigma: 35, target: 90 },
+  begynder: { key: 'begynder', name: 'Begynder', sigma: 19.5, doubleFactor: 2.2, badRate: 0.15, badSigma: 90, target: 27 },
+  pub: { key: 'pub', name: 'Pub', sigma: 14.5, doubleFactor: 2.2, badRate: 0.12, badSigma: 65, target: 40 },
+  liga: { key: 'liga', name: 'Liga', sigma: 11, doubleFactor: 2.0, badRate: 0.09, badSigma: 50, target: 55 },
+  pro: { key: 'pro', name: 'Pro', sigma: 6.8, doubleFactor: 1.7, badRate: 0.06, badSigma: 35, target: 85 },
 };
 
 // Box-Muller standard normal.
@@ -73,7 +73,9 @@ function gauss(rand) {
 export function throwDart(target, level, rand = Math.random) {
   const aim = aimPoint(target);
   const bad = rand() < level.badRate;
-  const s = bad ? level.badSigma : level.sigma;
+  let s = bad ? level.badSigma : level.sigma;
+  // Doubles (and the bull) are much harder under pressure: extra spread.
+  if (target.ring === 'D' || target.ring === 'DB') s *= level.doubleFactor || 1;
   const hit = scoreAt(aim.x + gauss(rand) * s, aim.y + gauss(rand) * s);
   return { ...hit, aimed: target, bad };
 }

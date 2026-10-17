@@ -60,9 +60,7 @@
           </div>
           <div class="top-right">
             <div class="pill">{{ startScore }} · LEG {{ legNumber }}</div>
-            <router-link :to="historyLink" class="icon-link" aria-label="Historik" title="Historik">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l3 2" /></svg>
-            </router-link>
+            <AppMenu />
           </div>
         </header>
 
@@ -181,8 +179,10 @@ import { useRoute, useRouter } from 'vue-router';
 import { getDatabase, ref as firebaseRef, onValue, update, set, push } from 'firebase/database';
 import { buildPlayerSnapshot } from '@/matchHistory';
 import { showAlert, showConfirm, showPrompt } from '@/dialog';
+import AppMenu from '@/components/AppMenu.vue';
 import confetti from 'canvas-confetti';
 export default {
+  components: { AppMenu },
   setup() {
     const route = useRoute();
     const router = useRouter();

@@ -77,7 +77,7 @@ export default {
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: rgba(14, 15, 18, 0.8);
+  background: var(--backdrop);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: flex;
@@ -90,14 +90,14 @@ export default {
   width: 100%;
   max-width: 380px;
   box-sizing: border-box;
-  background: #181A20;
-  border: 1px solid #2A2D36;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 20px;
   padding: 24px 20px 20px;
-  color: #F2F2EE;
+  color: var(--text);
   font-family: 'Barlow', system-ui, sans-serif;
   text-align: center;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 60px var(--shadow);
   outline: none;
 }
 
@@ -113,7 +113,7 @@ export default {
 
 .dialog-message {
   margin: 0;
-  color: #C5C9D2;
+  color: var(--soft);
   font-size: 16px;
   line-height: 1.45;
   white-space: pre-line;
@@ -129,9 +129,9 @@ export default {
   height: 52px;
   padding: 0 16px;
   border-radius: 12px;
-  border: 1px solid #5B95FF;
-  background: #0E0F12;
-  color: #F2F2EE;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  color: var(--text);
   font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
   font-weight: 700;
   font-size: 22px;
@@ -140,7 +140,7 @@ export default {
 }
 
 .dialog-form input::placeholder {
-  color: #4A4F5C;
+  color: var(--placeholder);
 }
 
 .dialog-actions {
@@ -167,34 +167,34 @@ export default {
 }
 
 .btn.primary {
-  background: #5B95FF;
-  color: #0E0F12;
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .btn.primary:hover {
-  background: #7AAAFF;
+  background: var(--accent-hover);
 }
 
 .btn.primary.danger {
-  background: #FF9B8A;
+  background: var(--danger);
 }
 
 .btn.primary.danger:hover {
-  background: #FFB3A6;
+  background: var(--danger-hover);
 }
 
 .btn.secondary {
-  background: #1E2027;
-  color: #F2F2EE;
-  border: 1px solid #2A2D36;
+  background: var(--key);
+  color: var(--text);
+  border: 1px solid var(--line);
 }
 
 .btn.secondary:hover {
-  background: #272A33;
+  background: var(--key-hover);
 }
 
 .btn:focus-visible {
-  outline: 2px solid #F2F2EE;
+  outline: 2px solid var(--text);
   outline-offset: 2px;
 }
 

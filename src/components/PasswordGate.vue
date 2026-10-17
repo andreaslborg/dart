@@ -65,8 +65,8 @@ export default {
   justify-content: center;
   padding: 16px;
   box-sizing: border-box;
-  background: #0E0F12;
-  color: #F2F2EE;
+  background: var(--bg);
+  color: var(--text);
   font-family: 'Barlow', system-ui, sans-serif;
 }
 
@@ -90,12 +90,12 @@ export default {
 }
 
 .accent {
-  color: #5B95FF;
+  color: var(--accent);
 }
 
 .gate-sub {
   margin: 0 0 12px;
-  color: #9AA0AD;
+  color: var(--muted);
   font-size: 15px;
 }
 
@@ -105,9 +105,9 @@ input {
   height: 56px;
   padding: 0 16px;
   border-radius: 12px;
-  border: 1px solid #2A2D36;
-  background: #181A20;
-  color: #F2F2EE;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
   font-family: 'Barlow', system-ui, sans-serif;
   font-size: 18px;
   text-align: center;
@@ -116,22 +116,22 @@ input {
 }
 
 input:focus {
-  border-color: #5B95FF;
+  border-color: var(--accent);
 }
 
 input.wrong {
-  border-color: #FF9B8A;
+  border-color: var(--danger);
   animation: shake 0.3s;
 }
 
 input::placeholder {
-  color: #4A4F5C;
+  color: var(--placeholder);
 }
 
 .gate-error {
   margin: 0;
   min-height: 20px;
-  color: #FF9B8A;
+  color: var(--danger);
   font-size: 14px;
   font-weight: 600;
 }
@@ -141,8 +141,8 @@ input::placeholder {
   height: 56px;
   border: 0;
   border-radius: 12px;
-  background: #5B95FF;
-  color: #0E0F12;
+  background: var(--accent);
+  color: var(--on-accent);
   font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
   font-weight: 800;
   font-size: 22px;
@@ -152,7 +152,7 @@ input::placeholder {
 }
 
 .gate-btn:hover {
-  background: #7AAAFF;
+  background: var(--accent-hover);
 }
 
 .sr-only {

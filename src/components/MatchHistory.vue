@@ -245,16 +245,6 @@ export default {
 
 <style scoped>
 .history {
-  --bg: #0E0F12;
-  --surface: #181A20;
-  --key: #1E2027;
-  --line: #2A2D36;
-  --text: #F2F2EE;
-  --muted: #9AA0AD;
-  --soft: #C5C9D2;
-  --accent: #5B95FF;
-  --gold: #FFB547;
-  --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
 
   color: var(--text);
   font-family: 'Barlow', system-ui, sans-serif;
@@ -415,7 +405,7 @@ select {
   align-items: end;
   gap: 8px;
   padding-bottom: 14px;
-  border-bottom: 1px solid #262932;
+  border-bottom: 1px solid var(--line2);
 }
 
 .h2h-side {
@@ -490,7 +480,7 @@ select {
   grid-template-columns: 1fr auto 1fr;
   gap: 8px;
   padding: 11px 0;
-  border-bottom: 1px solid #262932;
+  border-bottom: 1px solid var(--line2);
   font-size: 16px;
   font-weight: 600;
 }
@@ -547,7 +537,7 @@ select {
 }
 
 .record-value.gold {
-  color: var(--gold);
+  color: var(--gold-text);
 }
 
 .record-who {
@@ -596,7 +586,7 @@ select {
   font-size: 12px;
   letter-spacing: 0.1em;
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   border-radius: 999px;
   padding: 3px 8px;
 }
@@ -613,7 +603,7 @@ select {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: transparent;
-  color: #FF9B8A;
+  color: var(--danger);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -624,7 +614,7 @@ select {
 
 .delete:hover {
   background: var(--key);
-  border-color: #FF9B8A;
+  border-color: var(--danger);
 }
 
 .delete-all {
@@ -635,7 +625,7 @@ select {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: transparent;
-  color: #FF9B8A;
+  color: var(--danger);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -643,7 +633,7 @@ select {
 
 .delete-all:hover {
   background: var(--surface);
-  border-color: #FF9B8A;
+  border-color: var(--danger);
 }
 
 .match-body {
@@ -707,7 +697,7 @@ select {
 }
 
 .gold {
-  color: var(--gold);
+  color: var(--gold-text);
 }
 
 .sr-only {

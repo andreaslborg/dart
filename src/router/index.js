@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import DartScore from '../components/DartScore.vue';
 import MatchHistory from '../components/MatchHistory.vue';
 import VsAI from '../components/VsAI.vue';
+import SettingsPage from '../components/SettingsPage.vue';
 
 const routes = [
   {
@@ -18,6 +19,11 @@ const routes = [
     path: '/ai',
     name: 'AI',
     component: VsAI,
+  },
+  {
+    path: '/indstillinger',
+    name: 'Indstillinger',
+    component: SettingsPage,
   },
   {
     path: '/:pathMatch(.*)*',

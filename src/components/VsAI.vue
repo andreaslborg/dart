@@ -151,6 +151,7 @@ import getDartsCheckout from '@/getDartsCheckout';
 import { LEVELS, playVisit, humanVisitResult } from '@/ai/dartBot';
 import { buildPlayerSnapshot } from '@/matchHistory';
 import { showAlert, showConfirm } from '@/dialog';
+import { local, shared, buzz } from '@/settings';
 
 const STORE_KEY = 'borgdart_ai_v1';
 const DART_DELAY = 750;
@@ -179,7 +180,7 @@ export default {
 
     const saved = load(STORE_KEY, null);
     const setup = reactive({
-      name: (saved && saved.setup && saved.setup.name) || 'Mig',
+      name: local.name || (saved && saved.setup && saved.setup.name) || 'Mig',
       level: (saved && saved.setup && saved.setup.level) || 'pub',
       startScore: (saved && saved.setup && saved.setup.startScore) || 501,
       legsToWin: (saved && saved.setup && saved.setup.legsToWin) || 2,
@@ -218,6 +219,7 @@ export default {
     };
     const recent = (side) => g[side].legScores.slice(-3).reverse();
     const hint = (side) => {
+      if (!shared.checkoutHints) return '';
       const r = g.remaining[side];
       if (r > 170 || r < 2) return '';
       const c = getDartsCheckout(r);
@@ -307,6 +309,7 @@ export default {
       clearTimers();
       const name = (setup.name || '').trim() || 'Mig';
       setup.name = name;
+      if (!local.name) local.name = name;
       Object.assign(g, blankGame(), {
         phase: 'play', level: setup.level, botName: botNameFor(setup.level), myName: name,
         startScore: setup.startScore, legsToWin: setup.legsToWin, starter: setup.starter,
@@ -384,12 +387,14 @@ export default {
     };
 
     const press = (n) => {
+      buzz();
       if (String(currentScore.value).length >= 3) return;
       currentScore.value = `${currentScore.value}${n}`;
     };
 
     const submitMine = async () => {
       if (!myTurn.value) return;
+      buzz();
       const raw = String(currentScore.value).trim();
       const scored = raw === '' ? 0 : parseInt(raw, 10);
       if (Number.isNaN(scored) || scored < 0) return;
@@ -403,7 +408,7 @@ export default {
       currentScore.value = '';
       Object.assign(botVisit, { darts: [], shown: 0, total: null });
       const s = g.me;
-      const onFinish = before <= 50 && before > 1;
+      const onFinish = shared.askDoubles && before <= 50 && before > 1;
       if (result === 'bust') {
         s.visits.push(0);
         s.legScores.push('B');
@@ -422,7 +427,7 @@ export default {
         s.legDarts.push(s.legScores.length * 3);
         s.checkouts.push(before);
         s.highestCheckout = Math.max(s.highestCheckout, before);
-        pendingDouble.value = { before, checkout: true };
+        if (shared.askDoubles) pendingDouble.value = { before, checkout: true };
         finishLeg('me');
         return;
       }
@@ -473,18 +478,6 @@ export default {
 
 <style scoped>
 .ai {
-  --bg: #0E0F12;
-  --surface: #181A20;
-  --key: #1E2027;
-  --key-hover: #272A33;
-  --line: #2A2D36;
-  --text: #F2F2EE;
-  --muted: #9AA0AD;
-  --soft: #C5C9D2;
-  --accent: #5B95FF;
-  --gold: #FFB547;
-  --danger: #FF9B8A;
-  --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
 
   color: var(--text);
   font-family: 'Barlow', system-ui, sans-serif;
@@ -665,7 +658,7 @@ button:disabled {
 
 .segmented button.selected {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 
 .primary-btn {
@@ -673,7 +666,7 @@ button:disabled {
   border: 0;
   border-radius: 12px;
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   font-family: var(--display);
   font-weight: 800;
   font-size: 24px;
@@ -682,7 +675,7 @@ button:disabled {
 }
 
 .primary-btn:hover {
-  background: #7AAAFF;
+  background: var(--accent-hover);
 }
 
 .ghost-btn {
@@ -715,7 +708,7 @@ button:disabled {
 .result-banner,
 .leg-banner {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   font-family: var(--display);
   font-weight: 800;
   font-size: 24px;
@@ -798,7 +791,7 @@ button:disabled {
   top: -11px;
   right: 12px;
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   font-family: var(--display);
   font-weight: 800;
   font-size: 13px;
@@ -840,7 +833,7 @@ button:disabled {
   font-family: var(--display);
   font-weight: 700;
   font-size: 15px;
-  color: var(--bg);
+  color: var(--on-accent);
   background: var(--soft);
   border-radius: 6px;
   padding: 2px 8px;
@@ -852,6 +845,7 @@ button:disabled {
 
 .player-card.active .checkout {
   background: var(--gold);
+  color: var(--on-gold);
 }
 
 .recent {
@@ -965,16 +959,16 @@ button:disabled {
 
 .dart-chip.big {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 
 .dart-chip.dbl {
   background: var(--gold);
-  color: var(--bg);
+  color: var(--on-gold);
 }
 
 .dart-chip.bad {
-  background: #3A2A2A;
+  background: var(--bad-bg);
   color: var(--danger);
 }
 
@@ -1041,7 +1035,7 @@ button:disabled {
 }
 
 .score-field input::placeholder {
-  color: #3A3E49;
+  color: var(--placeholder);
 }
 
 .keypad {
@@ -1072,7 +1066,7 @@ button:disabled {
 .key.delete {
   width: 72px;
   height: 60px;
-  background: #23262E;
+  background: var(--key2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1081,7 +1075,7 @@ button:disabled {
 .key.enter {
   grid-column: span 2;
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   font-size: 26px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -1115,7 +1109,7 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 84px 96px;
   padding: 10px 0;
-  border-bottom: 1px solid #262932;
+  border-bottom: 1px solid var(--line2);
   font-size: 15px;
 }
 
@@ -1154,7 +1148,7 @@ button:disabled {
   position: fixed;
   inset: 0;
   z-index: 9;
-  background: rgba(14, 15, 18, 0.7);
+  background: var(--backdrop);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -1208,6 +1202,6 @@ button:disabled {
 
 .sheet-options button:hover {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 </style>

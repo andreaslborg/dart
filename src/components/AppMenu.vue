@@ -43,16 +43,16 @@
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
         </router-link>
 
-        <div class="menu-item soon" aria-disabled="true">
+        <router-link :to="settingsLink" class="menu-item" @click="close">
           <span class="menu-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
           </span>
           <span class="menu-text">
             <span class="menu-label">Indstillinger</span>
-            <span class="menu-desc">Spillere, lyd og spilregler</span>
-            <span class="soon-tag">KOMMER SNART</span>
+            <span class="menu-desc">Navn, tema og spilregler</span>
           </span>
-        </div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+        </router-link>
       </nav>
     </transition>
   </div>
@@ -71,6 +71,7 @@ export default {
 
     const historyLink = computed(() => ({ path: '/historik', query: route.query }));
     const aiLink = computed(() => ({ path: '/ai', query: route.query }));
+    const settingsLink = computed(() => ({ path: '/indstillinger', query: route.query }));
 
     const close = () => { open.value = false; };
     const closeAndFocus = async () => {
@@ -100,7 +101,7 @@ export default {
 
     onUnmounted(() => document.removeEventListener('keydown', onKey));
 
-    return { open, toggle, historyLink, aiLink, close, closeAndFocus };
+    return { open, toggle, historyLink, aiLink, settingsLink, close, closeAndFocus };
   },
 };
 </script>
@@ -116,9 +117,9 @@ export default {
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  border: 1px solid #2A2D36;
+  border: 1px solid var(--line);
   background: transparent;
-  color: #9AA0AD;
+  color: var(--muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -128,12 +129,12 @@ export default {
 
 .menu-toggle:hover,
 .menu-toggle.open {
-  color: #F2F2EE;
-  border-color: #5B95FF;
+  color: var(--text);
+  border-color: var(--accent);
 }
 
 .menu-toggle.open {
-  background: #181A20;
+  background: var(--surface);
 }
 
 .menu-backdrop {
@@ -149,11 +150,11 @@ export default {
   z-index: 31;
   width: min(320px, calc(100vw - 32px));
   box-sizing: border-box;
-  background: #181A20;
-  border: 1px solid #2A2D36;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 6px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 50px var(--shadow);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -168,18 +169,18 @@ export default {
   min-height: 60px;
   padding: 10px 12px;
   border-radius: 12px;
-  color: #F2F2EE;
+  color: var(--text);
   text-decoration: none;
   outline: none;
 }
 
 a.menu-item:hover,
 a.menu-item:focus-visible {
-  background: #1E2027;
+  background: var(--key);
 }
 
 a.menu-item:focus-visible {
-  box-shadow: inset 0 0 0 2px #5B95FF;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .menu-icon {
@@ -187,8 +188,8 @@ a.menu-item:focus-visible {
   height: 36px;
   flex: 0 0 36px;
   border-radius: 10px;
-  background: #0E0F12;
-  color: #5B95FF;
+  background: var(--bg);
+  color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -213,12 +214,12 @@ a.menu-item:focus-visible {
 
 .menu-desc {
   font-size: 13px;
-  color: #9AA0AD;
+  color: var(--muted);
   line-height: 1.3;
 }
 
 .chev {
-  color: #9AA0AD;
+  color: var(--muted);
   flex: 0 0 auto;
 }
 
@@ -227,15 +228,15 @@ a.menu-item:focus-visible {
 }
 
 .menu-item.soon .menu-icon {
-  color: #6B7080;
+  color: var(--faint);
 }
 
 .menu-item.soon .menu-label {
-  color: #9AA0AD;
+  color: var(--muted);
 }
 
 .menu-item.soon .menu-desc {
-  color: #6B7080;
+  color: var(--faint);
 }
 
 .soon-tag {
@@ -245,8 +246,8 @@ a.menu-item:focus-visible {
   font-weight: 700;
   font-size: 11px;
   letter-spacing: 0.1em;
-  color: #FFB547;
-  border: 1px solid rgba(255, 181, 71, 0.4);
+  color: var(--gold-text);
+  border: 1px solid var(--gold-text);
   border-radius: 999px;
   padding: 3px 7px;
   white-space: nowrap;

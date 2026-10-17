@@ -66,7 +66,11 @@
 
         <div v-if="hasWinner" class="winner-banner">
           <span>{{ scoreboardTitle }}</span>
-          <button type="button" class="next-leg" @click="startLeg(startScore)">
+          <button v-if="matchOver" type="button" class="next-leg" @click="resetWins">
+            Ny kamp
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          </button>
+          <button v-else type="button" class="next-leg" @click="startLeg(startScore)">
             Start leg {{ legNumber + 1 }}
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
           </button>
@@ -79,7 +83,7 @@
             <span v-if="legStarter === 1" class="starter-tag">STARTER LEG {{ legNumber }}</span>
             <div class="score" :class="{ long: String(totalScores.player1).length > 3 }">{{ totalScores.player1 }}</div>
             <div class="checkout-row">
-              <span v-if="player1Checkout" class="checkout" :class="{ none: player1Checkout === 'No checkout' }">{{ formatCheckout(player1Checkout) }}</span>
+              <span v-if="player1Checkout && shared.checkoutHints" class="checkout" :class="{ none: player1Checkout === 'No checkout' }">{{ formatCheckout(player1Checkout) }}</span>
             </div>
             <div class="recent">
               <span v-for="(s, i) in recentScores(player1Scores)" :key="i" :class="'recent-' + i">{{ s }}</span>
@@ -92,6 +96,7 @@
             <div class="legs-num" :class="{ lead: player1Wins > player2Wins }">{{ player1Wins }}</div>
             <div class="legs-sep"></div>
             <div class="legs-num" :class="{ lead: player2Wins > player1Wins }">{{ player2Wins }}</div>
+            <div v-if="shared.legsToWin" class="legs-label">TIL {{ shared.legsToWin }}</div>
           </div>
 
           <div class="player-card" :class="{ active: !isPlayer1Turn }">
@@ -100,7 +105,7 @@
             <span v-if="legStarter === 2" class="starter-tag">STARTER LEG {{ legNumber }}</span>
             <div class="score" :class="{ long: String(totalScores.player2).length > 3 }">{{ totalScores.player2 }}</div>
             <div class="checkout-row">
-              <span v-if="player2Checkout" class="checkout" :class="{ none: player2Checkout === 'No checkout' }">{{ formatCheckout(player2Checkout) }}</span>
+              <span v-if="player2Checkout && shared.checkoutHints" class="checkout" :class="{ none: player2Checkout === 'No checkout' }">{{ formatCheckout(player2Checkout) }}</span>
             </div>
             <div class="recent">
               <span v-for="(s, i) in recentScores(player2Scores)" :key="i" :class="'recent-' + i">{{ s }}</span>
@@ -174,11 +179,12 @@
 
 <script>
 import getDartsCheckout from '@/getDartsCheckout'
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getDatabase, ref as firebaseRef, onValue, update, set, push } from 'firebase/database';
 import { buildPlayerSnapshot } from '@/matchHistory';
 import { showAlert, showConfirm, showPrompt } from '@/dialog';
+import { local, shared, buzz } from '@/settings';
 import AppMenu from '@/components/AppMenu.vue';
 import confetti from 'canvas-confetti';
 export default {
@@ -188,10 +194,18 @@ export default {
     const router = useRouter();
     const routerReady = ref(false);
     router.isReady().then(() => { routerReady.value = true; });
-    const needsPlayer = computed(() => routerReady.value && route.query.player !== '1' && route.query.player !== '2');
+    const hasPlayerParam = computed(() => route.query.player === '1' || route.query.player === '2');
+    // A device with a saved seat ("Hvem er jeg") never needs to ask.
+    const needsPlayer = computed(() => routerReady.value && !hasPlayerParam.value && !local.seat);
     const choosePlayer = (n) => {
+      local.seat = n;
       router.replace({ query: { ...route.query, player: String(n) } });
     };
+    watch([routerReady, () => route.query.player], () => {
+      if (routerReady.value && !hasPlayerParam.value && local.seat) {
+        router.replace({ query: { ...route.query, player: String(local.seat) } });
+      }
+    }, { immediate: true });
     const database = getDatabase();
     const dbRef = firebaseRef(database, 'scores');
     const totalScores = ref({ player1: 501, player2: 501 });
@@ -346,7 +360,7 @@ export default {
         changes[`player${playerNum}Checkouts`] = checkouts.value;
       }
       update(dbRef, changes);
-      if (isCheckout || (before <= 50 && before > 1)) {
+      if (shared.askDoubles && (isCheckout || (before <= 50 && before > 1))) {
         pendingDouble.value = { playerNum, before, checkout: isCheckout };
       }
     };
@@ -434,10 +448,12 @@ export default {
     };
     
     function updateCurrentScore(num) {
+      buzz();
       currentScore.value = `${currentScore.value}${num}`;
     }
 
     const submitScore = () => {
+      buzz();
       const playerNum = route.query.player;
       if (!playerNum || (playerNum !== '1' && playerNum !== '2')) {
         showAlert('Vælg først hvilken spiller du er.', { title: 'Hvem er du?' });
@@ -477,12 +493,29 @@ export default {
       const scoreBefore = totalScores.value[playerKey];
       let newScore = scoreBefore - scoreInput;
 
-      if (newScore < 0) {
+      if (newScore < 0 && !shared.doubleOut) {
         showAlert(`Du har ${scoreBefore} tilbage, så ${scoreInput} er for meget.`, { title: 'Under 0' });
         currentScore.value = '';
         return;
-      } else if (newScore === 0) {
-        const winAnnouncement = `${playerNum === '1' ? player1Name.value : player2Name.value} vandt!`;
+      }
+      if (shared.doubleOut && (newScore < 0 || newScore === 1)) {
+        // Bust: the visit counts as 0 and the turn passes.
+        currentScore.value = '';
+        if (playerNum === '1') {
+          player1Scores.value.push(0);
+          player1SetScores.value.push(0);
+          update(dbRef, { player1Scores: player1Scores.value, player1SetScores: player1SetScores.value, isPlayer1Turn: !isPlayer1Turn.value });
+        } else {
+          player2Scores.value.push(0);
+          player2SetScores.value.push(0);
+          update(dbRef, { player2Scores: player2Scores.value, player2SetScores: player2SetScores.value, isPlayer1Turn: !isPlayer1Turn.value });
+        }
+        recordVisitExtras(playerNum, scoreBefore, false, 0);
+        showAlert(`Du havde ${scoreBefore} tilbage. ${scoreInput} giver bust, så runden tæller 0.`, { title: 'Bust!' });
+        return;
+      }
+      if (newScore === 0) {
+        const winnerName = playerNum === '1' ? player1Name.value : player2Name.value;
         confetti({
           particleCount: 100,
           spread: 70,
@@ -491,6 +524,8 @@ export default {
 
         const winnerKey = playerKey === 'player1' ? 'player1Wins' : 'player2Wins';
         const updatedWins = (winnerKey === 'player1Wins' ? player1Wins.value : player2Wins.value) + 1;
+        const wonMatch = shared.legsToWin > 0 && updatedWins >= shared.legsToWin;
+        const winAnnouncement = wonMatch ? `${winnerName} vandt kampen!` : `${winnerName} vandt!`;
 
         // Update the highest checkout if applicable
         if (playerNum === '1') {
@@ -570,6 +605,8 @@ export default {
 
     // Starter of a given leg: the match starter on odd legs, the other player on even legs.
     const starterForLeg = (legNo, starter) => (legNo % 2 === 1 ? starter : (starter === 1 ? 2 : 1));
+    const matchOver = computed(() => hasWinner.value && shared.legsToWin > 0
+      && Math.max(player1Wins.value || 0, player2Wins.value || 0) >= shared.legsToWin);
     const legStarter = computed(() => (matchStarter.value ? starterForLeg(legNumber.value, matchStarter.value) : null));
 
     // Reset the board for a new leg. The leg number is the legs won so far + 1.
@@ -625,9 +662,9 @@ export default {
           secondTurnScorePlayer2: "",
           thirdTurnScorePlayer1: "", 
           thirdTurnScorePlayer2: "",   
-          player1: startScore.value,
-          player2: startScore.value,
-          startScore: startScore.value,
+          player1: shared.defaultStartScore,
+          player2: shared.defaultStartScore,
+          startScore: shared.defaultStartScore,
           player1Scores: [],
           player2Scores: [],
           player1SetScores: [], 
@@ -698,10 +735,12 @@ export default {
       if (newName && newName.trim() !== '') {
         const playerNameKey = `player${playerNumber}Name`;
         update(dbRef, { [playerNameKey]: newName.trim() });
+        if (local.seat === playerNumber) local.name = newName.trim();
       }
     };
 
     function deleteLastNum() {
+      buzz();
       if (currentScore.value.length > 0) {
         currentScore.value = currentScore.value.slice(0, -1);
       }
@@ -763,7 +802,9 @@ export default {
       starterPrompt,
       chooseStarter,
       startLeg,
-      legStarter
+      legStarter,
+      matchOver,
+      shared
     };
   }
 };
@@ -771,18 +812,6 @@ export default {
 
 <style scoped>
 .dart-score {
-  --bg: #0E0F12;
-  --surface: #181A20;
-  --key: #1E2027;
-  --key-hover: #272A33;
-  --line: #2A2D36;
-  --text: #F2F2EE;
-  --muted: #9AA0AD;
-  --soft: #C5C9D2;
-  --accent: #5B95FF;
-  --gold: #FFB547;
-  --danger: #FF9B8A;
-  --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
 
   color: var(--text);
   font-family: 'Barlow', system-ui, sans-serif;
@@ -879,7 +908,7 @@ button {
 
 .winner-banner {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   font-family: var(--display);
   font-weight: 800;
   font-size: 24px;
@@ -912,7 +941,7 @@ button {
 }
 
 .next-leg:hover {
-  background: #23262E;
+  background: var(--key2);
 }
 
 .starter-tag {
@@ -969,7 +998,7 @@ button {
   top: -11px;
   right: 12px;
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   font-family: var(--display);
   font-weight: 800;
   font-size: 13px;
@@ -1021,7 +1050,7 @@ button {
   font-family: var(--display);
   font-weight: 700;
   font-size: 15px;
-  color: var(--bg);
+  color: var(--on-accent);
   background: var(--soft);
   border-radius: 6px;
   padding: 2px 8px;
@@ -1033,6 +1062,7 @@ button {
 
 .player-card.active .checkout {
   background: var(--gold);
+  color: var(--on-gold);
 }
 
 .checkout.none,
@@ -1139,7 +1169,7 @@ button {
 }
 
 #scoreInput::placeholder {
-  color: #3A3E49;
+  color: var(--placeholder);
 }
 
 #scoreInput::-webkit-outer-spin-button,
@@ -1177,7 +1207,7 @@ button {
 .key.delete {
   width: 72px;
   height: 60px;
-  background: #23262E;
+  background: var(--key2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1186,14 +1216,14 @@ button {
 .key.enter {
   grid-column: span 2;
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   font-size: 26px;
   font-weight: 800;
   letter-spacing: 0.06em;
 }
 
 .key.enter:hover {
-  background: #7AAAFF;
+  background: var(--accent-hover);
 }
 
 /* Settings */
@@ -1239,7 +1269,7 @@ button {
 
 .segmented button.selected {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 
 .actions {
@@ -1284,7 +1314,7 @@ button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 80px 80px;
   padding: 10px 0;
-  border-bottom: 1px solid #262932;
+  border-bottom: 1px solid var(--line2);
   font-size: 15px;
 }
 
@@ -1317,7 +1347,7 @@ button {
 }
 
 .gold {
-  color: var(--gold);
+  color: var(--gold-text);
 }
 
 .stats-group {
@@ -1335,7 +1365,7 @@ button {
   position: fixed;
   inset: 0;
   z-index: 9;
-  background: rgba(14, 15, 18, 0.7);
+  background: var(--backdrop);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -1390,7 +1420,7 @@ button {
 
 .sheet-options button:hover {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 
 /* Player picker */
@@ -1398,7 +1428,7 @@ button {
   position: fixed;
   inset: 0;
   z-index: 10;
-  background: rgba(14, 15, 18, 0.88);
+  background: var(--backdrop);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: flex;

@@ -93,10 +93,13 @@
             <li v-for="m in matches" :key="m.id" class="match">
               <div class="match-head">
                 <span class="match-date">{{ formatDate(m.startedAt) }} · {{ m.startScore || 501 }}</span>
-                <span v-if="m.id === currentMatchId" class="live-tag">I GANG</span>
-                <button v-else type="button" class="delete" :aria-label="'Slet kamp ' + formatDate(m.startedAt)" title="Slet kamp" @click="deleteMatch(m)">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /></svg>
-                </button>
+                <span class="match-tools">
+                  <span v-if="m.id === currentMatchId" class="live-tag">I GANG</span>
+                  <button type="button" class="delete" :aria-label="'Slet kamp ' + formatDate(m.startedAt)" @click="deleteMatch(m)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /></svg>
+                    Slet
+                  </button>
+                </span>
               </div>
               <div class="match-body">
                 <div class="match-player" :class="{ won: m.players.p1.legs > m.players.p2.legs }">
@@ -115,6 +118,7 @@
               </div>
             </li>
           </ul>
+          <button type="button" class="delete-all" @click="deleteAll">Slet alle kampe</button>
         </section>
       </template>
     </div>
@@ -124,7 +128,7 @@
 <script>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { getDatabase, ref as firebaseRef, onValue, remove } from 'firebase/database';
+import { getDatabase, ref as firebaseRef, onValue, remove, update } from 'firebase/database';
 import {
   matchList, playerNames, headToHead, records, average, formatNumber, formatPct, formatDate, normalizeName,
 } from '@/matchHistory';
@@ -196,10 +200,24 @@ export default {
       ];
     });
 
+    // Forget the running match id so the scoreboard doesn't write it back.
+    const detachCurrentMatch = () => update(firebaseRef(database, 'scores'), { currentMatchId: null, matchStartedAt: null });
+
     const deleteMatch = (m) => {
       const label = `${m.players.p1.name} ${m.players.p1.legs}–${m.players.p2.legs} ${m.players.p2.name}`;
-      if (window.confirm(`Slet kampen ${label} (${formatDate(m.startedAt)})?`)) {
+      const live = m.id === currentMatchId.value;
+      const extra = live ? '\n\nKampen er i gang. Den bliver gemt igen som en ny kamp, når næste leg er vundet.' : '';
+      if (window.confirm(`Slet kampen ${label} (${formatDate(m.startedAt)})?${extra}`)) {
+        if (live) detachCurrentMatch();
         remove(firebaseRef(database, `history/matches/${m.id}`));
+      }
+    };
+
+    const deleteAll = () => {
+      const n = matches.value.length;
+      if (window.confirm(`Slet alle ${n} kampe i historikken? Det kan ikke fortrydes.`)) {
+        if (currentMatchId.value) detachCurrentMatch();
+        remove(firebaseRef(database, 'history/matches'));
       }
     };
 
@@ -218,7 +236,7 @@ export default {
 
     return {
       loading, matches, names, playerA, playerB, h2h, h2hRows, recordCards,
-      currentMatchId, backLink, deleteMatch, formatDate, formatNumber, average,
+      currentMatchId, backLink, deleteMatch, deleteAll, formatDate, formatNumber, average,
     };
   },
 };
@@ -582,22 +600,49 @@ select {
   padding: 3px 8px;
 }
 
-.delete {
-  width: 36px;
-  height: 36px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--muted);
+.match-tools {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+}
+
+.delete {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: #FF9B8A;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
 }
 
 .delete:hover {
-  color: #FF9B8A;
   background: var(--key);
+  border-color: #FF9B8A;
+}
+
+.delete-all {
+  align-self: center;
+  margin-top: 8px;
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: #FF9B8A;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.delete-all:hover {
+  background: var(--surface);
+  border-color: #FF9B8A;
 }
 
 .match-body {

@@ -39,8 +39,8 @@
           <span class="menu-text">
             <span class="menu-label">Indstillinger</span>
             <span class="menu-desc">Spillere, lyd og spilregler</span>
+            <span class="soon-tag">KOMMER SNART</span>
           </span>
-          <span class="soon-tag">KOMMER SNART</span>
         </div>
 
         <div class="menu-item soon" aria-disabled="true">
@@ -50,8 +50,8 @@
           <span class="menu-text">
             <span class="menu-label">Spil mod AI</span>
             <span class="menu-desc">Træn mod en computer-modstander</span>
+            <span class="soon-tag">KOMMER SNART</span>
           </span>
-          <span class="soon-tag">KOMMER SNART</span>
         </div>
       </nav>
     </transition>
@@ -146,7 +146,7 @@ export default {
   top: calc(100% + 8px);
   right: 0;
   z-index: 31;
-  width: min(300px, calc(100vw - 32px));
+  width: min(320px, calc(100vw - 32px));
   box-sizing: border-box;
   background: #181A20;
   border: 1px solid #2A2D36;
@@ -238,7 +238,8 @@ a.menu-item:focus-visible {
 }
 
 .soon-tag {
-  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: 5px;
   font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
   font-weight: 700;
   font-size: 11px;

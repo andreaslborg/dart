@@ -229,7 +229,10 @@ export default {
     const chipClass = (i) => {
       if (i >= botVisit.shown) return 'empty';
       const d = botVisit.darts[i];
-      return { bad: d.value === 0 || d.bad, big: d.ring === 'T' || d.ring === 'DB', dbl: d.double };
+      // Red = a genuinely poor result: a miss, or a different number than the one aimed at.
+      const offTarget = d.aimed && d.ring !== 'SB' && d.ring !== 'DB' && d.n !== d.aimed.n;
+      const poor = d.value === 0 || offTarget;
+      return { bad: poor, big: !poor && (d.ring === 'T' || d.ring === 'DB'), dbl: !poor && d.double };
     };
     const botVisitTotal = computed(() => {
       if (botVisit.total === null) {

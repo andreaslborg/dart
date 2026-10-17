@@ -43,16 +43,16 @@
           </span>
         </div>
 
-        <div class="menu-item soon" aria-disabled="true">
+        <router-link :to="aiLink" class="menu-item" @click="close">
           <span class="menu-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="8" width="14" height="11" rx="3" /><path d="M12 4v4" /><circle cx="12" cy="3.5" r="1" /><circle cx="9.5" cy="13" r="0.8" /><circle cx="14.5" cy="13" r="0.8" /><path d="M10 16h4" /></svg>
           </span>
           <span class="menu-text">
             <span class="menu-label">Spil mod AI</span>
-            <span class="menu-desc">Træn mod en computer-modstander</span>
-            <span class="soon-tag">KOMMER SNART</span>
+            <span class="menu-desc">Fire niveauer, fra Begynder til Pro</span>
           </span>
-        </div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+        </router-link>
       </nav>
     </transition>
   </div>
@@ -70,6 +70,7 @@ export default {
     const toggle = ref(null);
 
     const historyLink = computed(() => ({ path: '/historik', query: route.query }));
+    const aiLink = computed(() => ({ path: '/ai', query: route.query }));
 
     const close = () => { open.value = false; };
     const closeAndFocus = async () => {
@@ -99,7 +100,7 @@ export default {
 
     onUnmounted(() => document.removeEventListener('keydown', onKey));
 
-    return { open, toggle, historyLink, close, closeAndFocus };
+    return { open, toggle, historyLink, aiLink, close, closeAndFocus };
   },
 };
 </script>

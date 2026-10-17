@@ -122,7 +122,9 @@ export function records(matches) {
     if (!best[key] || better(value, best[key].value)) best[key] = { value, name: (name || '').trim(), date };
   };
   for (const m of matches) {
-    for (const p of [m.players.p1, m.players.p2]) {
+    // Bots from "Spil mod AI" don't count towards the records.
+    const humans = m.mode === 'ai' ? [m.players.p1] : [m.players.p1, m.players.p2];
+    for (const p of humans) {
       const avg = average(p.scored || 0, p.visits || 0);
       consider('highestCheckout', p.highestCheckout, p.name, m.startedAt, (x, y) => x > y);
       consider('highScore', p.highScore, p.name, m.startedAt, (x, y) => x > y);

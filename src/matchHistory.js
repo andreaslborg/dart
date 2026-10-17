@@ -119,7 +119,7 @@ export function records(matches) {
   };
   const consider = (key, value, name, date, better) => {
     if (value === null || value === undefined || value === 0) return;
-    if (!best[key] || better(value, best[key].value)) best[key] = { value, name, date };
+    if (!best[key] || better(value, best[key].value)) best[key] = { value, name: (name || '').trim(), date };
   };
   for (const m of matches) {
     for (const p of [m.players.p1, m.players.p2]) {

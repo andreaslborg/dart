@@ -20,7 +20,7 @@
     <div v-if="open" class="menu-backdrop" @click="close"></div>
 
     <transition name="menu">
-      <nav v-if="open" id="app-menu" class="menu" aria-label="Menu" @keydown.esc.prevent="closeAndFocus">
+      <nav v-if="open" id="app-menu" class="menu" aria-label="Menu">
         <router-link :to="historyLink" class="menu-item" @click="close">
           <span class="menu-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l3 2" /></svg>
@@ -59,7 +59,7 @@
 </template>
 
 <script>
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 
 export default {
@@ -78,13 +78,26 @@ export default {
       if (toggle.value) toggle.value.focus();
     };
 
-    // Move focus into the menu when it opens so Escape and Tab work naturally.
+    // Escape closes the menu wherever focus is, but only while it is open.
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeAndFocus();
+      }
+    };
+
     watch(open, async (isOpen) => {
-      if (!isOpen) return;
+      if (!isOpen) {
+        document.removeEventListener('keydown', onKey);
+        return;
+      }
+      document.addEventListener('keydown', onKey);
       await nextTick();
       const first = document.querySelector('#app-menu .menu-item');
       if (first) first.focus();
     });
+
+    onUnmounted(() => document.removeEventListener('keydown', onKey));
 
     return { open, toggle, historyLink, close, closeAndFocus };
   },
@@ -97,6 +110,8 @@ export default {
 }
 
 .menu-toggle {
+  position: relative;
+  z-index: 32;
   width: 40px;
   height: 40px;
   border-radius: 999px;

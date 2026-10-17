@@ -1,5 +1,26 @@
 <template>
   <div class="dart-score">
+    <div v-if="needsPlayer" class="picker-backdrop">
+      <div class="picker" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+        <svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true">
+          <rect x="0" y="0" width="48" height="48" rx="12" fill="#5B95FF" />
+          <path d="M15 10v28M15 10h10a7 7 0 0 1 0 14H15M15 24h12a7 7 0 0 1 0 14H15" fill="none" stroke="#0E0F12" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="25" cy="17" r="2.6" fill="#0E0F12" />
+        </svg>
+        <h2 id="picker-title" class="picker-title">Hvem er du?</h2>
+        <p class="picker-sub">Vælg din spiller for at taste scores.</p>
+        <div class="picker-options">
+          <button type="button" class="picker-option" @click="choosePlayer(1)">
+            <span class="picker-num">SPILLER 1</span>
+            <span class="picker-name">{{ player1Name }}</span>
+          </button>
+          <button type="button" class="picker-option" @click="choosePlayer(2)">
+            <span class="picker-num">SPILLER 2</span>
+            <span class="picker-name">{{ player2Name }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="layout">
       <div class="col-main">
         <header class="topbar">
@@ -110,12 +131,19 @@
 <script>
 import getDartsCheckout from '@/getDartsCheckout'
 import { ref, onMounted, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { getDatabase, ref as firebaseRef, onValue, update } from 'firebase/database';
 import confetti from 'canvas-confetti';
 export default {
   setup() {
     const route = useRoute();
+    const router = useRouter();
+    const routerReady = ref(false);
+    router.isReady().then(() => { routerReady.value = true; });
+    const needsPlayer = computed(() => routerReady.value && route.query.player !== '1' && route.query.player !== '2');
+    const choosePlayer = (n) => {
+      router.replace({ query: { ...route.query, player: String(n) } });
+    };
     const database = getDatabase();
     const dbRef = firebaseRef(database, 'scores');
     const totalScores = ref({ player1: 501, player2: 501 });
@@ -509,7 +537,9 @@ export default {
       hasWinner,
       legNumber,
       formatCheckout,
-      recentScores
+      recentScores,
+      needsPlayer,
+      choosePlayer
     };
   }
 };
@@ -992,6 +1022,96 @@ button {
 
 .gold {
   color: var(--gold);
+}
+
+/* Player picker */
+.picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: rgba(14, 15, 18, 0.88);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.picker {
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 28px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.picker-title {
+  margin: 8px 0 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 32px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.picker-sub {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.picker-options {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.picker-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 96px;
+  padding: 16px 14px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--key);
+  color: var(--text);
+  text-align: left;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.picker-option:hover,
+.picker-option:focus-visible {
+  border-color: var(--accent);
+  background: var(--key-hover);
+  outline: none;
+}
+
+.picker-num {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.picker-name {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 26px;
+  text-transform: uppercase;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Wide screens: stats beside the game */

@@ -20,7 +20,7 @@
           <div class="player-card" :class="{ active: isPlayer1Turn }">
             <div v-if="isPlayer1Turn" class="turn-tag">DIN TUR</div>
             <button class="name" type="button" title="Skift navn" @click="changePlayerName(1)">{{ player1Name }}</button>
-            <div class="score">{{ totalScores.player1 }}</div>
+            <div class="score" :class="{ long: String(totalScores.player1).length > 3 }">{{ totalScores.player1 }}</div>
             <div class="checkout-row">
               <span v-if="player1Checkout" class="checkout" :class="{ none: player1Checkout === 'No checkout' }">{{ formatCheckout(player1Checkout) }}</span>
             </div>
@@ -40,7 +40,7 @@
           <div class="player-card" :class="{ active: !isPlayer1Turn }">
             <div v-if="!isPlayer1Turn" class="turn-tag">DIN TUR</div>
             <button class="name" type="button" title="Skift navn" @click="changePlayerName(2)">{{ player2Name }}</button>
-            <div class="score">{{ totalScores.player2 }}</div>
+            <div class="score" :class="{ long: String(totalScores.player2).length > 3 }">{{ totalScores.player2 }}</div>
             <div class="checkout-row">
               <span v-if="player2Checkout" class="checkout" :class="{ none: player2Checkout === 'No checkout' }">{{ formatCheckout(player2Checkout) }}</span>
             </div>
@@ -132,8 +132,8 @@ export default {
     const player2Scores = ref([]); 
     const player1SetScores = ref([]); 
     const player2SetScores = ref([]); 
-    const player1HighestCheckout = ref(0);
-    const player2HighestCheckout = ref(0);
+    const player1HighestCheckout = ref(null);
+    const player2HighestCheckout = ref(null);
     const player1LowestCheckout = ref(NaN);
     const player2LowestCheckout = ref(NaN);
     const startScore = ref(501);
@@ -676,9 +676,14 @@ button {
 .score {
   font-family: var(--display);
   font-weight: 800;
-  font-size: 76px;
+  font-size: clamp(52px, 18vw, 76px);
   line-height: 0.9;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.score.long {
+  font-size: clamp(40px, 13vw, 60px);
 }
 
 .checkout-row {

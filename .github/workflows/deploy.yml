@@ -19,6 +19,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # GitHub Pages has no SPA rewrites: serve the app for unknown paths like /historik
+      - run: cp dist/index.html dist/404.html
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

@@ -41,7 +41,12 @@
             </svg>
             <span class="brand-word">BORG<span class="accent">DART</span></span>
           </div>
-          <div class="pill">{{ startScore }} · LEG {{ legNumber }}</div>
+          <div class="top-right">
+            <div class="pill">{{ startScore }} · LEG {{ legNumber }}</div>
+            <router-link :to="historyLink" class="icon-link" aria-label="Historik" title="Historik">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l3 2" /></svg>
+            </router-link>
+          </div>
         </header>
 
         <div v-if="hasWinner" class="winner-banner">{{ scoreboardTitle }}</div>
@@ -111,7 +116,7 @@
           <div class="actions">
             <button type="button" @click="switchTurns">Skift tur</button>
             <button type="button" @click="undoLastTurn">Fortryd tur</button>
-            <button type="button" class="danger" @click="resetWins">Nulstil total</button>
+            <button type="button" class="danger" @click="resetWins">Ny kamp</button>
           </div>
         </section>
       </div>
@@ -146,9 +151,10 @@
 
 <script>
 import getDartsCheckout from '@/getDartsCheckout'
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getDatabase, ref as firebaseRef, onValue, update } from 'firebase/database';
+import { getDatabase, ref as firebaseRef, onValue, update, set, push } from 'firebase/database';
+import { buildPlayerSnapshot } from '@/matchHistory';
 import confetti from 'canvas-confetti';
 export default {
   setup() {
@@ -190,6 +196,7 @@ export default {
     const player1Checkouts = ref([]);
     const player2Checkouts = ref([]);
     const pendingDouble = ref(null);
+    const currentMatchId = ref(null);
     const presetScores = [201, 301, 501, 701, 1000];
 
     // Display helpers for the redesigned UI
@@ -326,8 +333,43 @@ export default {
       update(dbRef, { [`player${pending.playerNum}DoubleDarts`]: next });
     };
 
+    const historyLink = computed(() => ({ path: '/historik', query: route.query }));
+
+    // Keep the running match's snapshot in history/matches up to date.
+    const saveMatchSnapshot = (data) => {
+      const id = data.currentMatchId;
+      if (!id) return;
+      const snapshot = {
+        startedAt: data.matchStartedAt || Date.now(),
+        updatedAt: Date.now(),
+        startScore: data.startScore || 501,
+        players: {
+          p1: buildPlayerSnapshot({
+            name: data.player1Name || 'Player 1',
+            legs: data.player1Wins || 0,
+            setScores: data.player1SetScores || [],
+            highestCheckout: data.player1HighestCheckout,
+            checkouts: data.player1Checkouts,
+            doubleDarts: data.player1DoubleDarts,
+            legDarts: data.player1LegDarts,
+          }),
+          p2: buildPlayerSnapshot({
+            name: data.player2Name || 'Player 2',
+            legs: data.player2Wins || 0,
+            setScores: data.player2SetScores || [],
+            highestCheckout: data.player2HighestCheckout,
+            checkouts: data.player2Checkouts,
+            doubleDarts: data.player2DoubleDarts,
+            legDarts: data.player2LegDarts,
+          }),
+        },
+      };
+      set(firebaseRef(database, `history/matches/${id}`), snapshot).catch(err => console.error('Kunne ikke gemme kamp:', err));
+    };
+
+    let stopListening = null;
     const fetchScores = () => {
-      onValue(dbRef, (snapshot) => {
+      stopListening = onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {
           totalScores.value = data;
@@ -354,6 +396,8 @@ export default {
           player2LegDarts.value = data.player2LegDarts || [];
           player1Checkouts.value = data.player1Checkouts || [];
           player2Checkouts.value = data.player2Checkouts || [];
+          currentMatchId.value = data.currentMatchId || null;
+          saveMatchSnapshot(data);
         }
       });
     };
@@ -439,7 +483,14 @@ export default {
         }
 
         // Update the database with the new score and winner details
-        update(dbRef, { [playerKey]: newScore, [winnerKey]: updatedWins, scoreboardTitle: winAnnouncement });
+        // The first won leg opens a match in the history
+        const matchFields = {};
+        if (!currentMatchId.value) {
+          matchFields.currentMatchId = push(firebaseRef(database, 'history/matches')).key;
+          matchFields.matchStartedAt = Date.now();
+          currentMatchId.value = matchFields.currentMatchId;
+        }
+        update(dbRef, { [playerKey]: newScore, [winnerKey]: updatedWins, scoreboardTitle: winAnnouncement, ...matchFields });
 
         currentScore.value = '';
 
@@ -508,7 +559,7 @@ export default {
     };
 
     const resetWins = () => {
-      if (window.confirm(`Er du sikker på at du vil nulstille total score?`)) {
+      if (window.confirm('Afslut kampen og start en ny? Kampen er gemt i historikken.')) {
         update(dbRef, { 
           player1Wins: 0,  
           player2Wins: 0,
@@ -538,6 +589,8 @@ export default {
           player2LegDarts: [],
           player1Checkouts: [],
           player2Checkouts: [],
+          currentMatchId: null,
+          matchStartedAt: null,
           scoreboardTitle: 'Borg Dart' 
         });
       }
@@ -597,6 +650,7 @@ export default {
     }
 
     onMounted(fetchScores);
+    onUnmounted(() => { if (stopListening) stopListening(); });
 
     return { 
       totalScores, 
@@ -646,7 +700,8 @@ export default {
       tonStats,
       finishStats,
       pendingDouble,
-      answerDouble
+      answerDouble,
+      historyLink
     };
   }
 };
@@ -724,6 +779,29 @@ button {
 
 .accent {
   color: var(--accent);
+}
+
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-link {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.icon-link:hover {
+  color: var(--text);
+  border-color: var(--accent);
 }
 
 .pill {

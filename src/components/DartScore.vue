@@ -1,121 +1,109 @@
 <template>
   <div class="dart-score">
-    <h1 class="scoreboard-title">{{ scoreboardTitle }}</h1> <!-- Display scoreboard title -->
-    <div class="score-display">
-      <div class="player">
-        <h2 class="name" @click="changePlayerName(1)">{{ player1Name }}</h2><!-- Dynamic name for player 1 -->
-        <p class="checkout-option">{{ player1Checkout }}</p>
-        <div class="score-container">
-          <p class="temp-score left">{{ lastTurnScorePlayer1 }}</p>
-          <p class="temp-score2 left">{{ secondTurnScorePlayer1 }}</p>
-          <p class="temp-score3 left">{{ thirdTurnScorePlayer1 }}</p>
-          <p class="score">{{ totalScores.player1 }}</p>
-        </div>
-        <p class="average-score">AVG {{ averageScore.player1 }}</p>        
-        <p class="your-turn">{{ isPlayer1Turn ? 'DIN TUR' : '' }}</p>
-      </div>
-      <div>
-        <p class="total-wins">
-          {{ player1Wins }}
-          -
-          {{ player2Wins }}
-        </p>
-      </div>
-      <div class="player">
-        <h2 class="name" @click="changePlayerName(2)">{{ player2Name }}</h2> <!-- Dynamic name for player 2 -->
-        <p class="checkout-option">{{ player2Checkout }}</p>
-        <div class="score-container">
-          <p class="score">{{ totalScores.player2 }}</p>
-          <p class="temp-score right">{{ lastTurnScorePlayer2 }}</p>
-          <p class="temp-score2 right">{{ secondTurnScorePlayer2 }}</p>
-          <p class="temp-score3 right">{{ thirdTurnScorePlayer2 }}</p>
-        </div>
-        <p class="average-score">AVG {{ averageScore.player2 }}</p>
-        <p class="your-turn">{{ !isPlayer1Turn ? 'DIN TUR' : '' }}</p>
-      </div>
-    </div>
-    <div class="input">
-      <input type="number"
-           v-model="currentScore"
-           placeholder="Score"
-           id="scoreInput"
-           autofocus
-           @keyup.enter="submitScore">
-           <a class="button delete" @click="deleteLastNum">SLET</a>
-    </div>
-    <div class="numlock-style">
-      <a class="button" v-for="num in [7,8,9,4,5,6,1,2,3]" :key="num" @click="updateCurrentScore(num)" :disabled="!isPlayer1Turn">
-        {{ num }}
-      </a>
-      <a class="button double" @click="updateCurrentScore(0)" :disabled="!isPlayer1Turn">0</a>
-      <a class="button submit" @click="submitScore">ENTER</a>
-    </div>
-    <!-- Predefined Score Buttons -->
-    <h2 class="config-name">INDSTILLINGER</h2>
-    <div class="preset-scores">
-        <a class="button" @click="setPredefinedScore(201)" :disabled="!isPlayer1Turn">201</a>
-        <a class="button" @click="setPredefinedScore(301)" :disabled="!isPlayer1Turn">301</a>
-        <a class="button" @click="setPredefinedScore(501)" :disabled="!isPlayer1Turn">501</a>
-        <a class="button" @click="setPredefinedScore(701)" :disabled="!isPlayer1Turn">701</a>
-        <a class="button" @click="setPredefinedScore(1000)" :disabled="!isPlayer1Turn">1000</a>
-        <a class="button switch-turns" @click="switchTurns">Skift tur</a>
-        <a class="button switch-turns" @click="undoLastTurn">Fortryd tur</a>
-        <a class="button switch-turns" @click="resetWins">Nulstil total</a>
-    </div>
+    <div class="layout">
+      <div class="col-main">
+        <header class="topbar">
+          <div class="brand">
+            <svg class="brand-mark" width="34" height="34" viewBox="0 0 48 48" aria-hidden="true">
+              <rect x="0" y="0" width="48" height="48" rx="12" fill="#5B95FF" />
+              <path d="M15 10v28M15 10h10a7 7 0 0 1 0 14H15M15 24h12a7 7 0 0 1 0 14H15" fill="none" stroke="#0E0F12" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="25" cy="17" r="2.6" fill="#0E0F12" />
+            </svg>
+            <span class="brand-word">BORG<span class="accent">DART</span></span>
+          </div>
+          <div class="pill">{{ startScore }} · LEG {{ legNumber }}</div>
+        </header>
 
-    <!-- Stats Table -->
-    <h2 class="stats-title">Stats</h2>
-    <table class="stats-table">
-      <colgroup>
-        <col style="width: 50%;">
-        <col style="width: 25%;">
-        <col style="width: 25%;">
-      </colgroup>
-      <thead>
-        <tr>
-          <th>STAT</th>
-          <th>{{ player1Name }}</th>
-          <th>{{ player2Name }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>AVERAGE<br>LEG SCORE</td>
-          <td>{{ averageScore.player1 }}</td>
-          <td>{{ averageScore.player2 }}</td>
-        </tr>
-        <tr>
-          <td>AVERAGE<br>SET SCORE</td>
-          <td>{{ averageSetScore.player1 }}</td>
-          <td>{{ averageSetScore.player2 }}</td>
-        </tr>
-        <tr>
-          <td>AVERAGE<br>LEG 9 DART</td>
-          <td>{{ firstNineDartSetScore.player1 }}</td>
-          <td>{{ firstNineDartSetScore.player2 }}</td>
-        </tr>
-        <tr>
-          <td>HIGHEST<br>SCORE</td>
-          <td>{{ highestThreeDartScore.player1 }}</td>
-          <td>{{ highestThreeDartScore.player2 }}</td>
-        </tr>
-        <tr>
-          <td>LOWEST<br>SCORE</td>
-          <td>{{ lowestThreeDartScore.player1 }}</td>
-          <td>{{ lowestThreeDartScore.player2 }}</td>
-        </tr>
-        <tr>
-          <td>HIGHEST<br>CHECKOUT</td>
-          <td>{{ player1HighestCheckout }}</td>
-          <td>{{ player2HighestCheckout }}</td>
-        </tr>
-        <tr>
-          <td>LOWEST<br>CHECKOUT</td>
-          <td>{{ player1LowestCheckout }}</td>
-          <td>{{ player2LowestCheckout }}</td>
-        </tr>
-      </tbody>
-    </table>
+        <div v-if="hasWinner" class="winner-banner">{{ scoreboardTitle }}</div>
+
+        <section class="score-display">
+          <div class="player-card" :class="{ active: isPlayer1Turn }">
+            <div v-if="isPlayer1Turn" class="turn-tag">DIN TUR</div>
+            <button class="name" type="button" title="Skift navn" @click="changePlayerName(1)">{{ player1Name }}</button>
+            <div class="score">{{ totalScores.player1 }}</div>
+            <div class="checkout-row">
+              <span v-if="player1Checkout" class="checkout" :class="{ none: player1Checkout === 'No checkout' }">{{ formatCheckout(player1Checkout) }}</span>
+            </div>
+            <div class="recent">
+              <span v-for="(s, i) in recentScores(player1Scores)" :key="i" :class="'recent-' + i">{{ s }}</span>
+            </div>
+            <div class="avg">AVG {{ fmt(averageScore.player1) }}</div>
+          </div>
+
+          <div class="legs">
+            <div class="legs-label">LEGS</div>
+            <div class="legs-num" :class="{ lead: player1Wins > player2Wins }">{{ player1Wins }}</div>
+            <div class="legs-sep"></div>
+            <div class="legs-num" :class="{ lead: player2Wins > player1Wins }">{{ player2Wins }}</div>
+          </div>
+
+          <div class="player-card" :class="{ active: !isPlayer1Turn }">
+            <div v-if="!isPlayer1Turn" class="turn-tag">DIN TUR</div>
+            <button class="name" type="button" title="Skift navn" @click="changePlayerName(2)">{{ player2Name }}</button>
+            <div class="score">{{ totalScores.player2 }}</div>
+            <div class="checkout-row">
+              <span v-if="player2Checkout" class="checkout" :class="{ none: player2Checkout === 'No checkout' }">{{ formatCheckout(player2Checkout) }}</span>
+            </div>
+            <div class="recent">
+              <span v-for="(s, i) in recentScores(player2Scores)" :key="i" :class="'recent-' + i">{{ s }}</span>
+            </div>
+            <div class="avg">AVG {{ fmt(averageScore.player2) }}</div>
+          </div>
+        </section>
+
+        <div class="input-row">
+          <label class="score-field">
+            <span class="score-label">SCORE</span>
+            <input type="number"
+                   v-model="currentScore"
+                   id="scoreInput"
+                   inputmode="none"
+                   placeholder="0"
+                   autofocus
+                   @keyup.enter="submitScore">
+          </label>
+          <button class="key delete" type="button" aria-label="Slet sidste tal" @click="deleteLastNum">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z" /><path d="M17 9l-5 6M12 9l5 6" /></svg>
+          </button>
+        </div>
+
+        <div class="keypad">
+          <button class="key" type="button" v-for="num in [7,8,9,4,5,6,1,2,3]" :key="num" @click="updateCurrentScore(num)">{{ num }}</button>
+          <button class="key" type="button" @click="updateCurrentScore(0)">0</button>
+          <button class="key enter" type="button" @click="submitScore">ENTER</button>
+        </div>
+
+        <section class="settings">
+          <h2 class="section-title">SPIL</h2>
+          <div class="segmented">
+            <button v-for="p in presetScores" :key="p" type="button" :class="{ selected: p === startScore }" @click="setPredefinedScore(p)">{{ p }}</button>
+          </div>
+          <div class="actions">
+            <button type="button" @click="switchTurns">Skift tur</button>
+            <button type="button" @click="undoLastTurn">Fortryd tur</button>
+            <button type="button" class="danger" @click="resetWins">Nulstil total</button>
+          </div>
+        </section>
+      </div>
+
+      <section class="col-stats">
+        <h2 class="section-title">STATS</h2>
+        <div class="stats">
+          <div class="stats-row head">
+            <span></span>
+            <span :class="{ accent: isPlayer1Turn }">{{ player1Name }}</span>
+            <span :class="{ accent: !isPlayer1Turn }">{{ player2Name }}</span>
+          </div>
+          <div class="stats-row"><span>Gns. leg</span><span>{{ fmt(averageScore.player1) }}</span><span>{{ fmt(averageScore.player2) }}</span></div>
+          <div class="stats-row"><span>Gns. sæt</span><span>{{ fmt(averageSetScore.player1) }}</span><span>{{ fmt(averageSetScore.player2) }}</span></div>
+          <div class="stats-row"><span>Første 9 dart</span><span>{{ fmt(firstNineDartSetScore.player1) }}</span><span>{{ fmt(firstNineDartSetScore.player2) }}</span></div>
+          <div class="stats-row"><span>Højeste score</span><span>{{ fmt(highestThreeDartScore.player1) }}</span><span>{{ fmt(highestThreeDartScore.player2) }}</span></div>
+          <div class="stats-row"><span>Laveste score</span><span>{{ fmt(lowestThreeDartScore.player1) }}</span><span>{{ fmt(lowestThreeDartScore.player2) }}</span></div>
+          <div class="stats-row"><span>Højeste checkout</span><span class="gold">{{ fmt(player1HighestCheckout) }}</span><span class="gold">{{ fmt(player2HighestCheckout) }}</span></div>
+          <div class="stats-row"><span>Laveste checkout</span><span>{{ fmt(player1LowestCheckout) }}</span><span>{{ fmt(player2LowestCheckout) }}</span></div>
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -147,7 +135,20 @@ export default {
     const player1HighestCheckout = ref(0);
     const player2HighestCheckout = ref(0);
     const player1LowestCheckout = ref(NaN);
-    const player2LowestCheckout = ref(NaN); 
+    const player2LowestCheckout = ref(NaN);
+    const startScore = ref(501);
+    const presetScores = [201, 301, 501, 701, 1000];
+
+    // Display helpers for the redesigned UI
+    const fmt = (v) => (v === null || v === undefined || v === '' || Number.isNaN(v) ? '–' : v);
+    const hasWinner = computed(() => scoreboardTitle.value && scoreboardTitle.value !== 'Borg Dart');
+    const legNumber = computed(() => (player1Wins.value || 0) + (player2Wins.value || 0) + (hasWinner.value ? 0 : 1));
+    const formatCheckout = (c) => {
+      if (!c) return '';
+      if (c === 'No checkout') return 'Ingen checkout';
+      return c.split(',').map(s => s.trim()).join(' · ');
+    };
+    const recentScores = (scores) => scores.slice(-3).reverse();
 
     const formatAverage = (avg) => {
       return avg % 1 === 0 ? avg.toString() : avg.toFixed(1);
@@ -234,6 +235,7 @@ export default {
           player2HighestCheckout.value = data.player2HighestCheckout || null;
           player1LowestCheckout.value = data.player1LowestCheckout || null;
           player2LowestCheckout.value = data.player2LowestCheckout || null;
+          startScore.value = data.startScore || 501;
         }
       });
     };
@@ -367,8 +369,9 @@ export default {
           player1Checkout: "", 
           player2Checkout: "", 
           isPlayer1Turn: true, 
-          player1: score, 
-          player2: score, 
+          player1: score,
+          player2: score,
+          startScore: score,
           player1Scores: [],
           player2Scores: [], 
           scoreboardTitle: 'Borg Dart' 
@@ -395,9 +398,10 @@ export default {
           secondTurnScorePlayer2: "",
           thirdTurnScorePlayer1: "", 
           thirdTurnScorePlayer2: "",   
-          player1: 501, 
-          player2: 501, 
-          player1Scores: [], 
+          player1: 501,
+          player2: 501,
+          startScore: 501,
+          player1Scores: [],
           player2Scores: [],
           player1SetScores: [], 
           player2SetScores: [],
@@ -496,301 +500,510 @@ export default {
       averageSetScore,
       firstNineDartSetScore,
       highestThreeDartScore,
-      lowestThreeDartScore
+      lowestThreeDartScore,
+      player1Scores,
+      player2Scores,
+      startScore,
+      presetScores,
+      fmt,
+      hasWinner,
+      legNumber,
+      formatCheckout,
+      recentScores
     };
   }
 };
 </script>
 
 <style scoped>
-.scoreboard-title {
-  color: #f0f0f0;
-  font-size: 28px;
-  text-transform: uppercase;
-  margin: 0;
+.dart-score {
+  --bg: #0E0F12;
+  --surface: #181A20;
+  --key: #1E2027;
+  --key-hover: #272A33;
+  --line: #2A2D36;
+  --text: #F2F2EE;
+  --muted: #9AA0AD;
+  --soft: #C5C9D2;
+  --accent: #5B95FF;
+  --gold: #FFB547;
+  --danger: #FF9B8A;
+  --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+
+  color: var(--text);
+  font-family: 'Barlow', system-ui, sans-serif;
+  padding: 16px 16px 32px;
+  box-sizing: border-box;
+  text-align: left;
 }
 
-.dart-score {
-  margin: 0;
+.dart-score *,
+.dart-score *::before,
+.dart-score *::after {
+  box-sizing: border-box;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.layout {
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.col-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Header */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-word {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.accent {
+  color: var(--accent);
+}
+
+.pill {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+
+.winner-banner {
+  background: var(--accent);
+  color: var(--bg);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+/* Scoreboard */
+.score-display {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.player-card {
+  position: relative;
+  background: var(--surface);
+  border: 2px solid var(--surface);
+  border-radius: 16px;
+  padding: 14px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  transition: border-color 0.2s;
+}
+
+.player-card.active {
+  border-color: var(--accent);
+}
+
+.turn-tag {
+  position: absolute;
+  top: -11px;
+  right: 12px;
+  background: var(--accent);
+  color: var(--bg);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.name {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--text);
+  text-align: left;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.name:hover {
+  color: var(--soft);
+}
+
+.score {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 76px;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.checkout-row {
+  min-height: 22px;
+  display: flex;
+}
+
+.checkout {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--bg);
+  background: var(--soft);
+  border-radius: 6px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.player-card.active .checkout {
+  background: var(--gold);
+}
+
+.checkout.none,
+.player-card.active .checkout.none {
+  background: transparent;
+  color: var(--muted);
+  padding: 2px 0;
+}
+
+.recent {
+  display: flex;
+  gap: 10px;
+  min-height: 21px;
+  font-family: var(--display);
+  font-size: 17px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+
+.recent .recent-0 {
+  color: var(--text);
+}
+
+.recent .recent-2 {
+  opacity: 0.6;
+}
+
+.avg {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.legs {
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-@media screen and (min-width: 992px) {
-  .stats-title {
-    display: none;
-  }
-  .stats-table {
-    position: absolute;
-    top: 240px;
-    right: 10%;
-  }
-
-  .preset-scores {
-    margin-bottom: 30px;
-  }
-}
-
-.score-display {
-  display: flex;
   justify-content: center;
-  gap: 0px;
-  width: 100%;
+  gap: 4px;
 }
 
-.player {
-  text-align: center;
-  color: #f0f0f0;
-  width: 130px;
+.legs-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.1em;
 }
 
-.player .name {
-  font-size: 28px;
-  margin-top: 15px;
-  margin-bottom: 0;
+.legs-num {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 1;
 }
 
-.player .name:hover {
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.7);
+.legs-num.lead {
+  color: var(--accent);
 }
 
-.player .score {
-  font-size: 35px;
-  margin-top: 0px;
-  margin-bottom: 0;
-  font-weight: 900;
-  text-decoration: none;
+.legs-sep {
+  width: 16px;
+  height: 2px;
+  background: var(--line);
 }
 
-.player .checkout-option {
-  font-size: 14px;
-  margin: 0;
-  font-weight: 900;
-  height: 20px;
-  color: #aaaaaa;
+/* Input + keypad */
+.input-row {
+  display: flex;
+  gap: 8px;
 }
 
-.player .average-score {
-  font-size: 12px;
-  font-weight: 900;
-  margin: -5px 0px 5px 0px;
-  color: #aaaaaa;
-}
-
-.score-container {
+.score-field {
+  flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 0 16px;
+  height: 60px;
 }
 
-.temp-score {
-  margin: 0;
-  color: grey;
-}
-
-.temp-score2 {
-  margin: 50px 0 0 0;
-  color: rgba(128, 128, 128, 0.5);
-}
-
-.temp-score3 {
-  margin: 100px 0 0 0;
-  color: rgba(128, 128, 128, 0.25);
-}
-
-.temp-score.right, .temp-score2.right, .temp-score3.right {
-  font-size: 20px;
-  font-weight: 900;
-  margin-left: 130px;
-  text-decoration: none;
-  position: absolute;
-}
-
-.temp-score.left, .temp-score2.left, .temp-score3.left {
-  font-size: 20px;
-  font-weight: 900;
-  margin-right: 130px;
-  text-decoration: none;
-  position: absolute;
-}
-
-
-.player .your-turn {
-  font-size: 16px;
-  font-weight: bold;
-  margin-top: 0;
-  margin-bottom: 10px;
-  padding: 0;
-}
-
-.total-wins {
-  margin: 75px 0 0 0;
-  padding: 0;
-  font-weight: 900;
-  font-size: 20px;
-  color: #f0f0f0;
+.score-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--muted);
 }
 
 #scoreInput {
-  margin-bottom: 0px;
-  font-size: 30px;
-  font-weight: 700;
-  color: #f0f0f0;
-  background: 0;
-  text-align: center;
+  background: transparent;
   border: 0;
-  text-transform: uppercase;
-  grid-column: span 2;
-  padding-top: 5px;
-  padding-bottom: 5px;
-}
-
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
+  color: var(--text);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 40px;
+  text-align: right;
+  width: 140px;
+  outline: none;
+  -moz-appearance: textfield;
 }
 
 #scoreInput::placeholder {
-   color: rgba(255, 255, 255, 0.3)
+  color: #3A3E49;
 }
 
-.input {
+#scoreInput::-webkit-outer-spin-button,
+#scoreInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.keypad {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  width: 100%;
-  max-width: 500px;
-  padding-top: 8px;
-  padding-bottom: 8px;
 }
 
-.numlock-style {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  width: 100%;
-  max-width: 500px;
+.key {
+  height: 62px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--key);
+  color: var(--text);
+  font-family: var(--display);
+  font-size: 30px;
+  font-weight: 600;
+  transition: background-color 0.1s, transform 0.05s;
 }
 
-.button {
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 20px 10px;
-  font-size: 20px;
-  display: inline-block;
-  text-align: center;
-  text-decoration: none; 
-  cursor: pointer; 
-  border-radius: 4px;
-  color: white;
+.key:hover {
+  background: var(--key-hover);
 }
 
-.delete {
+.key:active {
+  transform: scale(0.97);
+}
+
+.key.delete {
+  width: 72px;
+  height: 60px;
+  background: #23262E;
   display: flex;
-  padding: 0;
-  justify-content: center;
   align-items: center;
-  font-size: 18px;
-}
-
-.button:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.4);
-}
-
-.preset-scores {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr); 
   justify-content: center;
-  gap: 8px;
-  width: 100%;
-  max-width: 500px;
 }
 
-.config-name {
-  color: #f0f0f0;
-  margin-top: 20px;
-  margin-bottom: 10px;
-}
-
-.preset-scores .switch-turns {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 0px 0px;
-  font-size: 15px;
-  font-style: italic;
-}
-
-.preset-scores .button {
-  padding: 10px 0;
-  height: 25px;
-  width: 100%;
-}
-
-.double {
+.key.enter {
   grid-column: span 2;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
 }
 
-.submit {
-  text-transform: uppercase;
+.key.enter:hover {
+  background: #7AAAFF;
+}
+
+/* Settings */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.section-title {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.segmented button {
+  height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--display);
+  font-size: 19px;
   font-weight: 700;
 }
 
-.stats-title {
-  color: #f0f0f0;
-  font-size: 24px;
-  text-transform: uppercase;
-  margin: 20px 0 0 0;
-  overflow: hidden;
+.segmented button:hover {
+  color: var(--text);
 }
 
-.stats-table {
-  width: 100%;
-  max-width: 500px;
-  margin-top: 10px;
-  margin-bottom: 30px;
-  border-spacing: 0;
-  border-collapse: separate;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+.segmented button.selected {
+  background: var(--accent);
+  color: var(--bg);
 }
 
-.stats-table th {
-  color: #f0f0f0;
-  font-size: 16px;
-  font-weight: 800;
-  padding: 8px;
+.actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
-.stats-table td {
-  color: #f0f0f0;
+.actions button {
+  height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
   font-size: 14px;
-  font-weight: 800;
-  padding: 2px;
+  font-weight: 600;
 }
 
-.stats-table td {
-  text-align: center;
-  color: #f0f0f0;
+.actions button:hover {
+  background: var(--surface);
 }
 
-.stats-table colgroup col:first-child {
-  width: 40%;
+.actions button.danger {
+  color: var(--danger);
 }
 
-.stats-table colgroup col:nth-child(2),
-.stats-table colgroup col:nth-child(3) {
-  width: 30%;
+/* Stats */
+.col-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
+.stats {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 4px 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 80px 80px;
+  padding: 10px 0;
+  border-bottom: 1px solid #262932;
+  font-size: 15px;
+}
+
+.stats-row:last-child {
+  border-bottom: 0;
+}
+
+.stats-row span:first-child {
+  color: var(--soft);
+}
+
+.stats-row span:not(:first-child) {
+  text-align: right;
+}
+
+.stats-row.head span {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-row.head span.accent {
+  color: var(--accent);
+}
+
+.gold {
+  color: var(--gold);
+}
+
+/* Wide screens: stats beside the game */
+@media screen and (min-width: 900px) {
+  .layout {
+    max-width: 880px;
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .col-main {
+    flex: 0 0 440px;
+  }
+
+  .col-stats {
+    flex: 1;
+    margin-top: 60px;
+  }
+}
 </style>

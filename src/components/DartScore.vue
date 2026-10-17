@@ -1106,12 +1106,11 @@ button {
 .picker-name {
   font-family: var(--display);
   font-weight: 800;
-  font-size: 26px;
+  font-size: 24px;
+  line-height: 1.05;
   text-transform: uppercase;
   max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 /* Wide screens: stats beside the game */

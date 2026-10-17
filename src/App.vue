@@ -1,13 +1,17 @@
 <template>
   <div id="app">
     <router-view/>
+    <AppDialog />
   </div>
 </template>
 
 <script>
+import AppDialog from './components/AppDialog.vue';
+
 export default {
   name: 'App',
   components: {
+    AppDialog,
   }
 }
 </script>

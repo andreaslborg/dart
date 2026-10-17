@@ -132,6 +132,7 @@ import { getDatabase, ref as firebaseRef, onValue, remove, update } from 'fireba
 import {
   matchList, playerNames, headToHead, records, average, formatNumber, formatPct, formatDate, normalizeName,
 } from '@/matchHistory';
+import { showConfirm } from '@/dialog';
 
 export default {
   setup() {
@@ -203,19 +204,19 @@ export default {
     // Forget the running match id so the scoreboard doesn't write it back.
     const detachCurrentMatch = () => update(firebaseRef(database, 'scores'), { currentMatchId: null, matchStartedAt: null });
 
-    const deleteMatch = (m) => {
+    const deleteMatch = async (m) => {
       const label = `${m.players.p1.name} ${m.players.p1.legs}–${m.players.p2.legs} ${m.players.p2.name}`;
       const live = m.id === currentMatchId.value;
       const extra = live ? '\n\nKampen er i gang. Den bliver gemt igen som en ny kamp, når næste leg er vundet.' : '';
-      if (window.confirm(`Slet kampen ${label} (${formatDate(m.startedAt)})?${extra}`)) {
+      if (await showConfirm(`${label}, ${formatDate(m.startedAt)}.${extra}`, { title: 'Slet kamp?', confirmText: 'Slet', danger: true })) {
         if (live) detachCurrentMatch();
         remove(firebaseRef(database, `history/matches/${m.id}`));
       }
     };
 
-    const deleteAll = () => {
+    const deleteAll = async () => {
       const n = matches.value.length;
-      if (window.confirm(`Slet alle ${n} kampe i historikken? Det kan ikke fortrydes.`)) {
+      if (await showConfirm(`Alle ${n} kampe i historikken bliver slettet. Det kan ikke fortrydes.`, { title: 'Slet alle kampe?', confirmText: 'Slet alle', danger: true })) {
         if (currentMatchId.value) detachCurrentMatch();
         remove(firebaseRef(database, 'history/matches'));
       }

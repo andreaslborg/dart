@@ -180,6 +180,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getDatabase, ref as firebaseRef, onValue, update, set, push } from 'firebase/database';
 import { buildPlayerSnapshot } from '@/matchHistory';
+import { showAlert, showConfirm, showPrompt } from '@/dialog';
 import confetti from 'canvas-confetti';
 export default {
   setup() {
@@ -439,12 +440,12 @@ export default {
     const submitScore = () => {
       const playerNum = route.query.player;
       if (!playerNum || (playerNum !== '1' && playerNum !== '2')) {
-        alert("Invalid player number!");
+        showAlert('Vælg først hvilken spiller du er.', { title: 'Hvem er du?' });
         return;
       }
 
       if ((playerNum === '1' && !isPlayer1Turn.value) || (playerNum === '2' && isPlayer1Turn.value)) {
-        alert("Ikke din tur klovn!");
+        showAlert('Vent til det er din tur.', { title: 'Ikke din tur, klovn!' });
         return;
       }
       
@@ -467,7 +468,7 @@ export default {
       }
 
       if (scoreInput > 180) {
-        alert("Duuude din score kan ikke være højere end 180.");
+        showAlert('En runde kan højst give 180 point.', { title: 'Duuude' });
         currentScore.value = '';
         return;
       }
@@ -477,7 +478,7 @@ export default {
       let newScore = scoreBefore - scoreInput;
 
       if (newScore < 0) {
-        alert("Kan ikke være under 0...");
+        showAlert(`Du har ${scoreBefore} tilbage, så ${scoreInput} er for meget.`, { title: 'Under 0' });
         currentScore.value = '';
         return;
       } else if (newScore === 0) {
@@ -592,8 +593,8 @@ export default {
       });
     };
 
-    const setPredefinedScore = (score) => {
-      if (window.confirm(`Nulstil score til ${score}. Er du sikker?`)) {
+    const setPredefinedScore = async (score) => {
+      if (await showConfirm(`Begge spillere starter forfra på ${score}.`, { title: 'Nulstil leg?', confirmText: 'Nulstil' })) {
         startLeg(score);
       }
     };
@@ -603,8 +604,8 @@ export default {
       update(dbRef, { isPlayer1Turn: !isPlayer1Turn.value });
     };
 
-    const resetWins = () => {
-      if (window.confirm('Afslut kampen og start en ny? Kampen er gemt i historikken.')) {
+    const resetWins = async () => {
+      if (await showConfirm('Den nuværende kamp er gemt i historikken.', { title: 'Start ny kamp?', confirmText: 'Ny kamp' })) {
         starterPrompt.value = { type: 'match' };
       }
     };
@@ -655,16 +656,13 @@ export default {
       else startLeg(pending.score, n);
     };
 
-    const undoLastTurn = () => {
+    const undoLastTurn = async () => {
       const playerNum = isPlayer1Turn.value ? '2' : '1'; // If it's now player 1's turn, it means the last turn was player 2's, and vice versa
       const playerKey = `player${playerNum}`;
       const lastTurnScoreKey = `lastTurnScorePlayer${playerNum}`;
       const lastTurnScore = playerNum === '1' ? lastTurnScorePlayer1.value : lastTurnScorePlayer2.value;
-      if (window.confirm(`Fortryd ${lastTurnScore} point. Er du sikker?`)) {        
-        /*if (lastTurnScore === 0) {
-          alert("Ingen tidligere score at fortryde.");
-          return;
-        }*/
+      const lastName = playerNum === '1' ? player1Name.value : player2Name.value;
+      if (await showConfirm(`${lastName} får ${lastTurnScore} point tilbage, og turen går tilbage.`, { title: 'Fortryd tur?', confirmText: 'Fortryd' })) {
         update(dbRef, {
           [playerKey]: totalScores.value[playerKey] + lastTurnScore,
           [lastTurnScoreKey]: 0
@@ -694,8 +692,9 @@ export default {
       }
     };
 
-    const changePlayerName = (playerNumber) => {
-      const newName = prompt(`Indtast nyt navn for Spiller ${playerNumber}:`);
+    const changePlayerName = async (playerNumber) => {
+      const current = playerNumber === 1 ? player1Name.value : player2Name.value;
+      const newName = await showPrompt('', { title: `Navn, spiller ${playerNumber}`, value: current, placeholder: 'Navn', confirmText: 'Gem' });
       if (newName && newName.trim() !== '') {
         const playerNameKey = `player${playerNumber}Name`;
         update(dbRef, { [playerNameKey]: newName.trim() });

@@ -21,6 +21,15 @@
         </div>
       </div>
     </div>
+    <div v-if="pendingDouble" class="sheet-backdrop">
+      <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+        <h2 id="sheet-title" class="sheet-title">{{ pendingDouble.checkout ? 'Checkout!' : 'Darts på double?' }}</h2>
+        <p class="sheet-sub">{{ pendingDouble.checkout ? 'Hvor mange darts kastede du på double?' : 'Du stod på ' + pendingDouble.before + '. Hvor mange darts kastede du på double?' }}</p>
+        <div class="sheet-options">
+          <button v-for="n in (pendingDouble.checkout ? [1, 2, 3] : [0, 1, 2, 3])" :key="n" type="button" @click="answerDouble(n)">{{ n }}</button>
+        </div>
+      </div>
+    </div>
     <div class="layout">
       <div class="col-main">
         <header class="topbar">
@@ -115,13 +124,20 @@
             <span :class="{ accent: isPlayer1Turn }">{{ player1Name }}</span>
             <span :class="{ accent: !isPlayer1Turn }">{{ player2Name }}</span>
           </div>
+          <div class="stats-group">Scoring</div>
           <div class="stats-row"><span>Gns. leg</span><span>{{ fmt(averageScore.player1) }}</span><span>{{ fmt(averageScore.player2) }}</span></div>
-          <div class="stats-row"><span>Gns. sæt</span><span>{{ fmt(averageSetScore.player1) }}</span><span>{{ fmt(averageSetScore.player2) }}</span></div>
+          <div class="stats-row"><span>Gns. kamp</span><span>{{ fmt(averageSetScore.player1) }}</span><span>{{ fmt(averageSetScore.player2) }}</span></div>
           <div class="stats-row"><span>Første 9 dart</span><span>{{ fmt(firstNineDartSetScore.player1) }}</span><span>{{ fmt(firstNineDartSetScore.player2) }}</span></div>
+          <div class="stats-row"><span>180</span><span>{{ tonStats.player1.max }}</span><span>{{ tonStats.player2.max }}</span></div>
+          <div class="stats-row"><span>140+</span><span>{{ tonStats.player1.t140 }}</span><span>{{ tonStats.player2.t140 }}</span></div>
+          <div class="stats-row"><span>100+</span><span>{{ tonStats.player1.t100 }}</span><span>{{ tonStats.player2.t100 }}</span></div>
           <div class="stats-row"><span>Højeste score</span><span>{{ fmt(highestThreeDartScore.player1) }}</span><span>{{ fmt(highestThreeDartScore.player2) }}</span></div>
-          <div class="stats-row"><span>Laveste score</span><span>{{ fmt(lowestThreeDartScore.player1) }}</span><span>{{ fmt(lowestThreeDartScore.player2) }}</span></div>
+          <div class="stats-group">Finishing</div>
+          <div class="stats-row"><span>Checkout %</span><span>{{ fmt(finishStats.player1.pct) }}</span><span>{{ fmt(finishStats.player2.pct) }}</span></div>
           <div class="stats-row"><span>Højeste checkout</span><span class="gold">{{ fmt(player1HighestCheckout) }}</span><span class="gold">{{ fmt(player2HighestCheckout) }}</span></div>
-          <div class="stats-row"><span>Laveste checkout</span><span>{{ fmt(player1LowestCheckout) }}</span><span>{{ fmt(player2LowestCheckout) }}</span></div>
+          <div class="stats-row"><span>Checkouts 100+</span><span>{{ finishStats.player1.big }}</span><span>{{ finishStats.player2.big }}</span></div>
+          <div class="stats-row"><span>Bedste leg (darts)</span><span>{{ fmt(finishStats.player1.best) }}</span><span>{{ fmt(finishStats.player2.best) }}</span></div>
+          <div class="stats-row"><span>Gns. darts pr. leg</span><span>{{ fmt(finishStats.player1.avgDarts) }}</span><span>{{ fmt(finishStats.player2.avgDarts) }}</span></div>
         </div>
       </section>
     </div>
@@ -165,6 +181,15 @@ export default {
     const player1LowestCheckout = ref(NaN);
     const player2LowestCheckout = ref(NaN);
     const startScore = ref(501);
+    // Finishing data: darts thrown at a double per visit (aligned with set scores),
+    // darts used per won leg, and the value of every checkout.
+    const player1DoubleDarts = ref([]);
+    const player2DoubleDarts = ref([]);
+    const player1LegDarts = ref([]);
+    const player2LegDarts = ref([]);
+    const player1Checkouts = ref([]);
+    const player2Checkouts = ref([]);
+    const pendingDouble = ref(null);
     const presetScores = [201, 301, 501, 701, 1000];
 
     // Display helpers for the redesigned UI
@@ -242,6 +267,65 @@ export default {
       return player2Scores.value.length > 0 ? player2Scores.value[player2Scores.value.length - 3] : "";
     });
 
+    const tonStats = computed(() => {
+      const count = (arr) => ({
+        max: arr.filter(v => v === 180).length,
+        t140: arr.filter(v => v >= 140 && v < 180).length,
+        t100: arr.filter(v => v >= 100 && v < 140).length,
+      });
+      return { player1: count(player1SetScores.value), player2: count(player2SetScores.value) };
+    });
+
+    const finishStats = computed(() => {
+      const calc = (doubleDarts, legDarts, checkouts) => {
+        const attempts = doubleDarts.reduce((a, b) => a + (b || 0), 0);
+        const hits = checkouts.length;
+        return {
+          pct: attempts > 0 ? `${Math.round((hits / attempts) * 100)}%` : null,
+          big: checkouts.filter(v => v >= 100).length,
+          best: legDarts.length > 0 ? Math.min(...legDarts) : null,
+          avgDarts: legDarts.length > 0 ? formatAverage(legDarts.reduce((a, b) => a + b, 0) / legDarts.length) : null,
+        };
+      };
+      return {
+        player1: calc(player1DoubleDarts.value, player1LegDarts.value, player1Checkouts.value),
+        player2: calc(player2DoubleDarts.value, player2LegDarts.value, player2Checkouts.value),
+      };
+    });
+
+    // Called after every visit is saved. Records finishing data and, when the
+    // player was on a finish, asks how many darts went at a double.
+    const recordVisitExtras = (playerNum, before, isCheckout, checkoutValue) => {
+      const doubleDarts = playerNum === '1' ? player1DoubleDarts : player2DoubleDarts;
+      const legScores = playerNum === '1' ? player1Scores : player2Scores;
+      doubleDarts.value = [...doubleDarts.value, 0];
+      const changes = { [`player${playerNum}DoubleDarts`]: doubleDarts.value };
+      if (isCheckout) {
+        const legDarts = playerNum === '1' ? player1LegDarts : player2LegDarts;
+        const checkouts = playerNum === '1' ? player1Checkouts : player2Checkouts;
+        legDarts.value = [...legDarts.value, legScores.value.length * 3];
+        checkouts.value = [...checkouts.value, checkoutValue];
+        changes[`player${playerNum}LegDarts`] = legDarts.value;
+        changes[`player${playerNum}Checkouts`] = checkouts.value;
+      }
+      update(dbRef, changes);
+      if (isCheckout || (before <= 50 && before > 1)) {
+        pendingDouble.value = { playerNum, before, checkout: isCheckout };
+      }
+    };
+
+    const answerDouble = (n) => {
+      const pending = pendingDouble.value;
+      pendingDouble.value = null;
+      if (!pending) return;
+      const doubleDarts = pending.playerNum === '1' ? player1DoubleDarts : player2DoubleDarts;
+      if (doubleDarts.value.length === 0) return;
+      const next = [...doubleDarts.value];
+      next[next.length - 1] = n;
+      doubleDarts.value = next;
+      update(dbRef, { [`player${pending.playerNum}DoubleDarts`]: next });
+    };
+
     const fetchScores = () => {
       onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
@@ -264,6 +348,12 @@ export default {
           player1LowestCheckout.value = data.player1LowestCheckout || null;
           player2LowestCheckout.value = data.player2LowestCheckout || null;
           startScore.value = data.startScore || 501;
+          player1DoubleDarts.value = data.player1DoubleDarts || [];
+          player2DoubleDarts.value = data.player2DoubleDarts || [];
+          player1LegDarts.value = data.player1LegDarts || [];
+          player2LegDarts.value = data.player2LegDarts || [];
+          player1Checkouts.value = data.player1Checkouts || [];
+          player2Checkouts.value = data.player2Checkouts || [];
         }
       });
     };
@@ -298,6 +388,7 @@ export default {
           player2SetScores.value.push(0);
           update(dbRef, { player2Scores: player2Scores.value, player2SetScores: player2SetScores.value, isPlayer1Turn: !isPlayer1Turn.value });
         }
+        recordVisitExtras(playerNum, totalScores.value[`player${playerNum}`], false, 0);
         return;
       }
 
@@ -308,7 +399,8 @@ export default {
       }
 
       const playerKey = `player${playerNum}`;
-      let newScore = totalScores.value[playerKey] - scoreInput;
+      const scoreBefore = totalScores.value[playerKey];
+      let newScore = scoreBefore - scoreInput;
 
       if (newScore < 0) {
         alert("Kan ikke være under 0...");
@@ -361,6 +453,7 @@ export default {
           player2SetScores.value.push(scoreInput);
           update(dbRef, { player2Scores: player2Scores.value, player2SetScores: player2SetScores.value });
         }
+        recordVisitExtras(playerNum, scoreBefore, true, scoreInput);
 
         return;
       } else {
@@ -385,6 +478,8 @@ export default {
           const playerKeyCheckout = playerKey === 'player1' ? 'player1Checkout' : 'player2Checkout';
           update(dbRef, { [playerKeyCheckout]: checkoutOption });
         }
+
+        recordVisitExtras(playerNum, scoreBefore, false, 0);
 
         // Update isPlayer1Turn after submitting the score
         update(dbRef, { isPlayer1Turn: !isPlayer1Turn.value });
@@ -437,6 +532,12 @@ export default {
           player2HighestCheckout: null,
           player1LowestCheckout: null,
           player2LowestCheckout: null,
+          player1DoubleDarts: [],
+          player2DoubleDarts: [],
+          player1LegDarts: [],
+          player2LegDarts: [],
+          player1Checkouts: [],
+          player2Checkouts: [],
           scoreboardTitle: 'Borg Dart' 
         });
       }
@@ -462,13 +563,15 @@ export default {
             lastTurnScorePlayer1.value = 0;
             player1Scores.value.pop(); 
             player1SetScores.value.pop(); 
-            update(dbRef, { player1Scores: player1Scores.value });
+            if (player1DoubleDarts.value.length > player1SetScores.value.length) player1DoubleDarts.value = player1DoubleDarts.value.slice(0, -1);
+            update(dbRef, { player1Scores: player1Scores.value, player1SetScores: player1SetScores.value, player1DoubleDarts: player1DoubleDarts.value });
           } else {
             totalScores.value.player2 += lastTurnScore;
             lastTurnScorePlayer2.value = 0;
             player2Scores.value.pop();
             player2SetScores.value.pop();
-            update(dbRef, { player2Scores: player2Scores.value });
+            if (player2DoubleDarts.value.length > player2SetScores.value.length) player2DoubleDarts.value = player2DoubleDarts.value.slice(0, -1);
+            update(dbRef, { player2Scores: player2Scores.value, player2SetScores: player2SetScores.value, player2DoubleDarts: player2DoubleDarts.value });
           }
           // Optionally switch turns back
           isPlayer1Turn.value = !isPlayer1Turn.value;
@@ -539,7 +642,11 @@ export default {
       formatCheckout,
       recentScores,
       needsPlayer,
-      choosePlayer
+      choosePlayer,
+      tonStats,
+      finishStats,
+      pendingDouble,
+      answerDouble
     };
   }
 };
@@ -1022,6 +1129,79 @@ button {
 
 .gold {
   color: var(--gold);
+}
+
+.stats-group {
+  padding: 14px 0 4px;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* Darts-at-double sheet */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  background: rgba(14, 15, 18, 0.7);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+  padding: 22px 16px calc(20px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+
+.sheet-title {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.sheet-sub {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.sheet-options {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.sheet-options button {
+  height: 64px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--key);
+  color: var(--text);
+  font-family: var(--display);
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.sheet-options button:hover {
+  background: var(--accent);
+  color: var(--bg);
 }
 
 /* Player picker */

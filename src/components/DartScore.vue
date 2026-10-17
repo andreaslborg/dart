@@ -21,6 +21,23 @@
         </div>
       </div>
     </div>
+    <div v-if="starterPrompt && !needsPlayer" class="picker-backdrop">
+      <div class="picker" role="dialog" aria-modal="true" aria-labelledby="starter-title">
+        <h2 id="starter-title" class="picker-title">Hvem starter?</h2>
+        <p class="picker-sub">Starter leg 1, 3, 5 … Den anden starter leg 2, 4, 6 …</p>
+        <div class="picker-options">
+          <button type="button" class="picker-option" @click="chooseStarter(1)">
+            <span class="picker-num">SPILLER 1</span>
+            <span class="picker-name">{{ player1Name }}</span>
+          </button>
+          <button type="button" class="picker-option" @click="chooseStarter(2)">
+            <span class="picker-num">SPILLER 2</span>
+            <span class="picker-name">{{ player2Name }}</span>
+          </button>
+        </div>
+        <button type="button" class="picker-cancel" @click="starterPrompt = null">Annuller</button>
+      </div>
+    </div>
     <div v-if="pendingDouble" class="sheet-backdrop">
       <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
         <h2 id="sheet-title" class="sheet-title">{{ pendingDouble.checkout ? 'Checkout!' : 'Darts på double?' }}</h2>
@@ -49,12 +66,19 @@
           </div>
         </header>
 
-        <div v-if="hasWinner" class="winner-banner">{{ scoreboardTitle }}</div>
+        <div v-if="hasWinner" class="winner-banner">
+          <span>{{ scoreboardTitle }}</span>
+          <button type="button" class="next-leg" @click="startLeg(startScore)">
+            Start leg {{ legNumber + 1 }}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          </button>
+        </div>
 
         <section class="score-display">
           <div class="player-card" :class="{ active: isPlayer1Turn }">
             <div v-if="isPlayer1Turn" class="turn-tag">DIN TUR</div>
             <button class="name" type="button" title="Skift navn" @click="changePlayerName(1)">{{ player1Name }}</button>
+            <span v-if="legStarter === 1" class="starter-tag">STARTER LEG {{ legNumber }}</span>
             <div class="score" :class="{ long: String(totalScores.player1).length > 3 }">{{ totalScores.player1 }}</div>
             <div class="checkout-row">
               <span v-if="player1Checkout" class="checkout" :class="{ none: player1Checkout === 'No checkout' }">{{ formatCheckout(player1Checkout) }}</span>
@@ -75,6 +99,7 @@
           <div class="player-card" :class="{ active: !isPlayer1Turn }">
             <div v-if="!isPlayer1Turn" class="turn-tag">DIN TUR</div>
             <button class="name" type="button" title="Skift navn" @click="changePlayerName(2)">{{ player2Name }}</button>
+            <span v-if="legStarter === 2" class="starter-tag">STARTER LEG {{ legNumber }}</span>
             <div class="score" :class="{ long: String(totalScores.player2).length > 3 }">{{ totalScores.player2 }}</div>
             <div class="checkout-row">
               <span v-if="player2Checkout" class="checkout" :class="{ none: player2Checkout === 'No checkout' }">{{ formatCheckout(player2Checkout) }}</span>
@@ -197,6 +222,10 @@ export default {
     const player2Checkouts = ref([]);
     const pendingDouble = ref(null);
     const currentMatchId = ref(null);
+    // Who threw first in leg 1 of this match (1 or 2). Legs alternate from there.
+    const matchStarter = ref(null);
+    // Set while the "Hvem starter?" dialog is open: { type: 'match' } or { type: 'leg', score }
+    const starterPrompt = ref(null);
     const presetScores = [201, 301, 501, 701, 1000];
 
     // Display helpers for the redesigned UI
@@ -390,6 +419,7 @@ export default {
           player1LowestCheckout.value = data.player1LowestCheckout || null;
           player2LowestCheckout.value = data.player2LowestCheckout || null;
           startScore.value = data.startScore || 501;
+          matchStarter.value = data.matchStarter === 1 || data.matchStarter === 2 ? data.matchStarter : null;
           player1DoubleDarts.value = data.player1DoubleDarts || [];
           player2DoubleDarts.value = data.player2DoubleDarts || [];
           player1LegDarts.value = data.player1LegDarts || [];
@@ -537,19 +567,34 @@ export default {
       }
     };
 
+    // Starter of a given leg: the match starter on odd legs, the other player on even legs.
+    const starterForLeg = (legNo, starter) => (legNo % 2 === 1 ? starter : (starter === 1 ? 2 : 1));
+    const legStarter = computed(() => (matchStarter.value ? starterForLeg(legNumber.value, matchStarter.value) : null));
+
+    // Reset the board for a new leg. The leg number is the legs won so far + 1.
+    const startLeg = (score, starter = matchStarter.value) => {
+      if (!starter) {
+        starterPrompt.value = { type: 'leg', score };
+        return;
+      }
+      const nextLeg = (player1Wins.value || 0) + (player2Wins.value || 0) + 1;
+      update(dbRef, {
+        player1Checkout: "",
+        player2Checkout: "",
+        isPlayer1Turn: starterForLeg(nextLeg, starter) === 1,
+        matchStarter: starter,
+        player1: score,
+        player2: score,
+        startScore: score,
+        player1Scores: [],
+        player2Scores: [],
+        scoreboardTitle: 'Borg Dart'
+      });
+    };
+
     const setPredefinedScore = (score) => {
       if (window.confirm(`Nulstil score til ${score}. Er du sikker?`)) {
-        update(dbRef, { 
-          player1Checkout: "", 
-          player2Checkout: "", 
-          isPlayer1Turn: true, 
-          player1: score,
-          player2: score,
-          startScore: score,
-          player1Scores: [],
-          player2Scores: [], 
-          scoreboardTitle: 'Borg Dart' 
-        });
+        startLeg(score);
       }
     };
 
@@ -560,21 +605,28 @@ export default {
 
     const resetWins = () => {
       if (window.confirm('Afslut kampen og start en ny? Kampen er gemt i historikken.')) {
-        update(dbRef, { 
+        starterPrompt.value = { type: 'match' };
+      }
+    };
+
+    // Clear the whole match and begin leg 1 with the chosen starter.
+    const startNewMatch = (starter) => {
+      update(dbRef, { 
           player1Wins: 0,  
           player2Wins: 0,
           player1Checkout: "", 
           player2Checkout: "", 
-          isPlayer1Turn: true, 
+          isPlayer1Turn: starter === 1,
+          matchStarter: starter,
           lastTurnScorePlayer1: 0, 
           lastTurnScorePlayer2: 0,
           secondTurnScorePlayer1: "", 
           secondTurnScorePlayer2: "",
           thirdTurnScorePlayer1: "", 
           thirdTurnScorePlayer2: "",   
-          player1: 501,
-          player2: 501,
-          startScore: 501,
+          player1: startScore.value,
+          player2: startScore.value,
+          startScore: startScore.value,
           player1Scores: [],
           player2Scores: [],
           player1SetScores: [], 
@@ -592,8 +644,15 @@ export default {
           currentMatchId: null,
           matchStartedAt: null,
           scoreboardTitle: 'Borg Dart' 
-        });
-      }
+      });
+    };
+
+    const chooseStarter = (n) => {
+      const pending = starterPrompt.value;
+      starterPrompt.value = null;
+      if (!pending) return;
+      if (pending.type === 'match') startNewMatch(n);
+      else startLeg(pending.score, n);
     };
 
     const undoLastTurn = () => {
@@ -701,7 +760,11 @@ export default {
       finishStats,
       pendingDouble,
       answerDouble,
-      historyLink
+      historyLink,
+      starterPrompt,
+      chooseStarter,
+      startLeg,
+      legStarter
     };
   }
 };
@@ -823,9 +886,58 @@ button {
   font-size: 24px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  text-align: center;
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 8px 8px 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.next-leg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.next-leg:hover {
+  background: #23262E;
+}
+
+.starter-tag {
+  align-self: flex-start;
+  margin-top: -2px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.picker-cancel {
+  margin-top: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.picker-cancel:hover {
+  color: var(--text);
 }
 
 /* Scoreboard */

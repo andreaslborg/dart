@@ -32,6 +32,15 @@
           </div>
 
           <div class="row stack">
+            <span class="row-label">Visning</span>
+            <div class="segmented">
+              <button type="button" :class="{ selected: local.layout !== 'focus' }" @click="local.layout = 'h2h'">Head-to-head</button>
+              <button type="button" :class="{ selected: local.layout === 'focus' }" @click="local.layout = 'focus'">Fokus</button>
+            </div>
+            <p class="help">{{ local.layout === 'focus' ? 'Dine egne point står stort, modstanderen står småt nedenunder.' : 'Begge spillere side om side.' }}{{ local.layout === 'focus' && !local.seat ? ' Vælg "Hvem er jeg", så telefonen ved, hvem der er dig.' : '' }}</p>
+          </div>
+
+          <div class="row stack">
             <span class="row-label">Tema</span>
             <div class="segmented three">
               <button type="button" :class="{ selected: local.theme === 'system' }" @click="local.theme = 'system'">Automatisk</button>

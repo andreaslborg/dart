@@ -15,6 +15,7 @@ const localDefaults = {
   vibrate: true,
   voice: false, // speak scores into the microphone
   voiceLang: 'en', // 'en' | 'da'
+  layout: 'h2h', // 'h2h' (side by side) | 'focus' (own score big, opponent small)
 };
 
 export const sharedDefaults = {

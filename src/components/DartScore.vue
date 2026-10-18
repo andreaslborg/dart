@@ -100,7 +100,38 @@
           </button>
         </div>
 
-        <section class="score-display">
+        <!-- Focus view: your own score big, the opponent small underneath -->
+        <section v-if="focusView" class="focus">
+          <div class="focus-card" :class="{ active: focusView.me.isTurn }">
+            <div v-if="focusView.me.isTurn" class="turn-tag">DIN TUR</div>
+            <div class="focus-top">
+              <button class="name" type="button" title="Skift navn" @click="changePlayerName(focusView.me.n)">{{ focusView.me.name }}</button>
+              <span class="focus-avg">AVG <strong>{{ fmt(focusView.me.avg) }}</strong></span>
+            </div>
+            <span v-if="legStarter === focusView.me.n" class="starter-tag">STARTER LEG {{ legNumber }}</span>
+            <div class="focus-main">
+              <div class="focus-score">{{ focusView.me.score }}</div>
+              <div v-if="focusView.me.checkout && shared.checkoutHints" class="focus-co">
+                <span class="focus-co-label">CHECKOUT</span>
+                <span class="focus-co-value" :class="{ none: focusView.me.checkout === 'No checkout' }">{{ formatCheckout(focusView.me.checkout) }}</span>
+              </div>
+            </div>
+            <div class="focus-recent">
+              <span v-for="i in 3" :key="i" :class="{ first: i === 1 }">{{ focusView.me.recent[i - 1] !== undefined ? focusView.me.recent[i - 1] : '–' }}</span>
+            </div>
+          </div>
+
+          <div class="focus-opp" :class="{ active: focusView.opp.isTurn }">
+            <span class="focus-dot" aria-hidden="true"></span>
+            <button class="opp-name" type="button" title="Skift navn" @click="changePlayerName(focusView.opp.n)">{{ focusView.opp.name }}</button>
+            <span v-if="focusView.opp.isTurn" class="opp-turn">KASTER</span>
+            <span v-else-if="focusView.opp.checkout && shared.checkoutHints && focusView.opp.checkout !== 'No checkout'" class="opp-co">{{ formatCheckout(focusView.opp.checkout) }}</span>
+            <span class="opp-score">{{ focusView.opp.score }}</span>
+            <span class="opp-legs" :title="`Legs: ${focusView.me.legs}–${focusView.opp.legs}`">{{ focusView.me.legs }}<span class="sep">–</span>{{ focusView.opp.legs }}<template v-if="shared.legsToWin"><span class="sep"> / </span>{{ shared.legsToWin }}</template></span>
+          </div>
+        </section>
+
+        <section v-else class="score-display">
           <div class="player-card" :class="{ active: isPlayer1Turn }">
             <div v-if="isPlayer1Turn" class="turn-tag">DIN TUR</div>
             <button class="name" type="button" title="Skift navn" @click="changePlayerName(1)">{{ player1Name }}</button>
@@ -284,6 +315,25 @@ export default {
       return c.split(',').map(s => s.trim()).join(' · ');
     };
     const recentScores = (scores) => scores.slice(-3).reverse();
+
+    // Focus layout: needs to know which player this phone is.
+    const focusView = computed(() => {
+      if (local.layout !== 'focus') return null;
+      const p = route.query.player;
+      if (p !== '1' && p !== '2') return null;
+      const side = (n) => ({
+        n,
+        name: n === 1 ? player1Name.value : player2Name.value,
+        score: n === 1 ? totalScores.value.player1 : totalScores.value.player2,
+        checkout: n === 1 ? player1Checkout.value : player2Checkout.value,
+        recent: recentScores(n === 1 ? player1Scores.value : player2Scores.value),
+        avg: n === 1 ? averageScore.value.player1 : averageScore.value.player2,
+        legs: (n === 1 ? player1Wins.value : player2Wins.value) || 0,
+        isTurn: (n === 1) === Boolean(isPlayer1Turn.value),
+      });
+      const me = p === '1' ? 1 : 2;
+      return { me: side(me), opp: side(me === 1 ? 2 : 1) };
+    });
 
     const formatAverage = (avg) => {
       return avg % 1 === 0 ? avg.toString() : avg.toFixed(1);
@@ -879,6 +929,7 @@ export default {
       bullsUp,
       bullOwnIndex,
       voice,
+      focusView,
       chooseBull,
       setBull,
       bullRethrow,
@@ -1235,6 +1286,209 @@ button {
   width: 16px;
   height: 2px;
   background: var(--line);
+}
+
+/* Focus view */
+.focus {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.focus-card {
+  position: relative;
+  background: var(--surface);
+  border: 2px solid var(--surface);
+  border-radius: 20px;
+  padding: 16px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s;
+}
+
+.focus-card.active {
+  border-color: var(--accent);
+}
+
+.focus-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.focus-avg {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.focus-avg strong {
+  color: var(--text);
+}
+
+.focus-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.focus-score {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(88px, 30vw, 120px);
+  line-height: 0.82;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-co {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+  padding-bottom: 4px;
+}
+
+.focus-co-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.focus-co-value {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--gold-text);
+  text-align: right;
+  line-height: 1.05;
+}
+
+.focus-co-value.none {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.focus-recent {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.focus-recent span {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 8px;
+  text-align: center;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-recent span.first {
+  color: var(--text);
+}
+
+.focus-opp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid transparent;
+  min-height: 56px;
+}
+
+.focus-opp.active {
+  border-color: var(--accent);
+}
+
+.focus-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.focus-opp.active .focus-dot {
+  background: var(--accent);
+}
+
+.opp-name {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--soft);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.opp-turn {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+
+.opp-co {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.opp-score {
+  margin-left: auto;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 32px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--soft);
+}
+
+.opp-legs {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 15px;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 5px 8px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.opp-legs .sep {
+  color: var(--faint);
+  margin: 0 2px;
 }
 
 /* Input + keypad */

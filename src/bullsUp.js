@@ -1,17 +1,15 @@
-// Bulls up: each player throws one dart at the bull; closest starts.
+// Bulls up: each player throws one dart at the bull; the better result starts.
 // Results are 'bull', '25' or 'out'.
 
 export const BULL_RANK = { bull: 2, 25: 1, out: 0 };
 export const BULL_LABEL = { bull: 'Bull', 25: '25', out: 'Udenfor' };
 
-// Returns { status: 'waiting' | 'winner' | 'rethrow' | 'closest', winner?: 0 | 1 }.
-export function resolveBull(a, b, closestWinner = null) {
+// Returns { status: 'waiting' | 'winner' | 'rethrow', winner?: 0 | 1 }.
+// Only a clear difference decides it (bull beats 25 beats outside);
+// any tie, including both outside, means both throw again.
+export function resolveBull(a, b) {
   if (!a || !b) return { status: 'waiting' };
   if (a !== b) return { status: 'winner', winner: BULL_RANK[a] > BULL_RANK[b] ? 0 : 1 };
-  if (a === 'out') {
-    if (closestWinner === 0 || closestWinner === 1) return { status: 'winner', winner: closestWinner };
-    return { status: 'closest' };
-  }
   return { status: 'rethrow' };
 }
 

@@ -59,16 +59,12 @@
           v-if="g.phase === 'bull' && g.bull"
           :names="[g.myName, g.botName]"
           :results="[g.bull.me, g.bull.bot]"
-          :editable="[true, false]"
+          :own-index="0"
           :thinking="[false, bullThinking]"
-          :closest-winner="g.bull.closest"
           :round="g.bull.round"
           :note="bullNote"
-          :closest-question="g.bull.bot === 'out' ? `Begge ramte udenfor. ${g.botName} var ${g.bull.botDist} mm fra midten. Var du tættere?` : ''"
-          :closest-labels="['Ja, mig', 'Nej, botten']"
           start-text="Start kamp"
           @set="bullSet"
-          @closest="bullClosest"
           @rethrow="bullRethrow"
           @start="bullStart"
           @cancel="toSetup"
@@ -345,7 +341,7 @@ export default {
       if (setup.starter === 'bull') {
         g.phase = 'bull';
         g.starter = null;
-        g.bull = { me: null, bot: null, botDist: null, closest: null, round: 1 };
+        g.bull = { me: null, bot: null, botDist: null, round: 1 };
         return;
       }
       g.turn = starterOfLeg(1);
@@ -375,9 +371,8 @@ export default {
       g.bull.me = value;
       botBullThrow();
     };
-    const bullClosest = (i) => { if (g.bull) g.bull.closest = i; };
     const bullRethrow = () => {
-      g.bull = { me: null, bot: null, botDist: null, closest: null, round: (g.bull ? g.bull.round : 0) + 1 };
+      g.bull = { me: null, bot: null, botDist: null, round: (g.bull ? g.bull.round : 0) + 1 };
     };
     const bullStart = (i) => {
       g.starter = i === 0 ? 'me' : 'bot';
@@ -538,7 +533,7 @@ export default {
       g, setup, levelList, botNameFor, backLink, currentScore, pendingDouble, botVisit, legOver, myTurn,
       fmtAvg, recent, hint, chipText, chipClass, botVisitTotal, statRows,
       startMatch, nextLeg, press, submitMine, answerDouble, rematch, toSetup, quitMatch,
-      bullThinking, bullNote, bullSet, bullClosest, bullRethrow, bullStart,
+      bullThinking, bullNote, bullSet, bullRethrow, bullStart,
     };
   },
 };

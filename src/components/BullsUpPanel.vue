@@ -11,28 +11,26 @@
 
       <div v-for="i in [0, 1]" :key="i" class="bull-row">
         <span class="bull-name">{{ names[i] }}</span>
-        <div v-if="!results[i] && editable[i] && res.status === 'waiting'" class="bull-options" role="group" :aria-label="`Hvor ramte ${names[i]}?`">
+        <div v-if="!results[i] && i === ownIndex && res.status === 'waiting'" class="bull-options" role="group" :aria-label="`Hvor ramte ${names[i]}?`">
           <button v-for="opt in options" :key="opt" type="button" @click="$emit('set', i, opt)">{{ labels[opt] }}</button>
         </div>
-        <span v-else-if="results[i]" class="bull-result" :class="'r-' + results[i]">{{ labels[results[i]] }}</span>
+        <span v-else-if="results[i] && !hidden(i)" class="bull-result" :class="'r-' + results[i]">{{ labels[results[i]] }}</span>
+        <span v-else-if="results[i]" class="bull-waiting done">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
+          Har valgt. Vælg dit eget for at se det.
+        </span>
         <span v-else class="bull-waiting">{{ thinking[i] ? 'Kaster …' : 'Venter …' }}</span>
       </div>
       <p v-if="note" class="bull-note">{{ note }}</p>
 
       <div class="bull-status" aria-live="polite">
         <template v-if="res.status === 'waiting'">
-          <p>Kast hver én pil mod bull, og tryk hvor den landede.</p>
+          <p v-if="ownIndex !== null && results[ownIndex]">Venter på {{ names[1 - ownIndex] }} …</p>
+          <p v-else>Kast én pil mod bull, og tryk hvor den landede.</p>
         </template>
         <template v-else-if="res.status === 'rethrow'">
-          <p>Begge ramte {{ labels[results[0]] }}. Kast om!</p>
+          <p>Begge ramte {{ labels[results[0]] === 'Udenfor' ? 'udenfor' : labels[results[0]] }}. Uafgjort, så I kaster om!</p>
           <button type="button" class="bull-primary" @click="$emit('rethrow')">Kast om</button>
-        </template>
-        <template v-else-if="res.status === 'closest'">
-          <p>{{ closestQuestion || 'Begge ramte udenfor. Hvem var tættest på midten?' }}</p>
-          <div class="bull-pair">
-            <button type="button" class="bull-primary" @click="$emit('closest', 0)">{{ closestLabels ? closestLabels[0] : names[0] }}</button>
-            <button type="button" class="bull-primary" @click="$emit('closest', 1)">{{ closestLabels ? closestLabels[1] : names[1] }}</button>
-          </div>
         </template>
         <template v-else>
           <p class="bull-winner">{{ names[res.winner] }} starter!</p>
@@ -54,19 +52,18 @@ export default {
   props: {
     names: { type: Array, required: true },
     results: { type: Array, required: true }, // [r0, r1], each null | 'bull' | '25' | 'out'
-    editable: { type: Array, default: () => [true, true] },
     thinking: { type: Array, default: () => [false, false] },
-    closestWinner: { type: Number, default: null },
+    // Which row this device enters (0 or 1). The other row stays hidden until this one is chosen.
+    ownIndex: { type: Number, default: null },
     round: { type: Number, default: 1 },
     note: { type: String, default: '' },
-    closestQuestion: { type: String, default: '' },
-    closestLabels: { type: Array, default: null },
     startText: { type: String, default: 'Start' },
   },
-  emits: ['set', 'closest', 'rethrow', 'start', 'cancel'],
+  emits: ['set', 'rethrow', 'start', 'cancel'],
   setup(props) {
-    const res = computed(() => resolveBull(props.results[0], props.results[1], props.closestWinner));
-    return { res, labels: BULL_LABEL, options: ['bull', '25', 'out'] };
+    const res = computed(() => resolveBull(props.results[0], props.results[1]));
+    const hidden = (i) => props.ownIndex !== null && i !== props.ownIndex && !props.results[props.ownIndex];
+    return { res, hidden, labels: BULL_LABEL, options: ['bull', '25', 'out'] };
   },
 };
 </script>
@@ -195,6 +192,11 @@ export default {
   min-height: 34px;
   display: flex;
   align-items: center;
+  gap: 6px;
+}
+
+.bull-waiting.done svg {
+  color: var(--accent);
 }
 
 .bull-note {

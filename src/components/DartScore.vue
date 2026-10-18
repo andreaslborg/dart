@@ -25,11 +25,10 @@
       v-if="bullsUp && !needsPlayer"
       :names="[player1Name, player2Name]"
       :results="[bullsUp.p1 || null, bullsUp.p2 || null]"
-      :closest-winner="bullsUp.closest === 0 || bullsUp.closest === 1 ? bullsUp.closest : null"
+      :own-index="bullOwnIndex"
       :round="bullsUp.round || 1"
       :start-text="bullsUp.purpose === 'match' ? 'Start kamp' : 'Start leg'"
       @set="setBull"
-      @closest="bullClosest"
       @rethrow="bullRethrow"
       @start="bullStart"
       @cancel="bullCancel"
@@ -259,7 +258,7 @@ export default {
     const matchStarter = ref(null);
     // Set while the "Hvem starter?" dialog is open: { type: 'match' } or { type: 'leg', score }
     const starterPrompt = ref(null);
-    // Shared bulls-up state from the database: { purpose, score, p1, p2, closest, round }
+    // Shared bulls-up state from the database: { purpose, score, p1, p2, round }
     const bullsUp = ref(null);
     const presetScores = [201, 301, 501, 701, 1000];
 
@@ -711,12 +710,16 @@ export default {
       const pending = starterPrompt.value;
       starterPrompt.value = null;
       if (!pending) return;
-      update(dbRef, { bullsUp: { purpose: pending.type, score: pending.score || null, p1: null, p2: null, closest: null, round: 1 } });
+      update(dbRef, { bullsUp: { purpose: pending.type, score: pending.score || null, p1: null, p2: null, round: 1 } });
     };
-    const setBull = (i, value) => update(dbRef, { [`bullsUp/p${i + 1}`]: value });
-    const bullClosest = (i) => update(dbRef, { 'bullsUp/closest': i });
+    // A phone can only enter the result for its own seat.
+    const bullOwnIndex = computed(() => (route.query.player === '2' ? 1 : 0));
+    const setBull = (i, value) => {
+      if (i !== bullOwnIndex.value) return;
+      update(dbRef, { [`bullsUp/p${i + 1}`]: value });
+    };
     const bullRethrow = () => update(dbRef, {
-      'bullsUp/p1': null, 'bullsUp/p2': null, 'bullsUp/closest': null, 'bullsUp/round': ((bullsUp.value && bullsUp.value.round) || 1) + 1,
+      'bullsUp/p1': null, 'bullsUp/p2': null, 'bullsUp/round': ((bullsUp.value && bullsUp.value.round) || 1) + 1,
     });
     const bullCancel = () => update(dbRef, { bullsUp: null });
     const bullStart = (i) => {
@@ -848,9 +851,9 @@ export default {
       legStarter,
       matchOver,
       bullsUp,
+      bullOwnIndex,
       chooseBull,
       setBull,
-      bullClosest,
       bullRethrow,
       bullCancel,
       bullStart,

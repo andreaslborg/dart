@@ -55,6 +55,7 @@ export default {
   --faint: #6B7080;
   --accent: #5B95FF;
   --accent-hover: #7AAAFF;
+  --chart: #4A85F5;
   --on-accent: #0E0F12;
   --gold: #FFB547;
   --on-gold: #0E0F12;
@@ -83,6 +84,7 @@ export default {
   --faint: #8A909C;
   --accent: #2F6FE4;
   --accent-hover: #255CC4;
+  --chart: #2F6FE4;
   --on-accent: #FFFFFF;
   --gold: #F2A93B;
   --on-gold: #14161B;

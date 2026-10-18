@@ -76,8 +76,10 @@ export function throwDart(target, level, rand = Math.random) {
   let s = bad ? level.badSigma : level.sigma;
   // Doubles (and the bull) are much harder under pressure: extra spread.
   if (target.ring === 'D' || target.ring === 'DB') s *= level.doubleFactor || 1;
-  const hit = scoreAt(aim.x + gauss(rand) * s, aim.y + gauss(rand) * s);
-  return { ...hit, aimed: target, bad };
+  const x = aim.x + gauss(rand) * s;
+  const y = aim.y + gauss(rand) * s;
+  const hit = scoreAt(x, y);
+  return { ...hit, aimed: target, bad, x, y, dist: Math.hypot(x, y) };
 }
 
 // -------------------------------------------------------------- strategy ---
@@ -202,4 +204,9 @@ export function humanVisitResult(remaining, scored) {
   if (next === 0) return 'checkout';
   if (next < 2) return 'bust';
   return 'ok';
+}
+
+// One dart at the bull for "bull om start" (normal spread, no double pressure).
+export function throwBull(level, rand = Math.random) {
+  return throwDart({ ring: 'SB', n: 25, value: 25 }, level, rand);
 }

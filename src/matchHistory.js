@@ -137,3 +137,115 @@ export function records(matches) {
   }
   return best;
 }
+
+// ------------------------------------------------------------ players ----
+
+// Every match a player took part in, oldest first, seen from that player.
+export function playerMatches(matches, name) {
+  const key = normalizeName(name);
+  if (!key) return [];
+  const out = [];
+  for (const m of matches) {
+    const { p1, p2 } = m.players;
+    let me = null;
+    let opp = null;
+    if (normalizeName(p1.name) === key) { me = p1; opp = p2; } else if (normalizeName(p2.name) === key) { me = p2; opp = p1; } else continue;
+    const myLegs = me.legs || 0;
+    const oppLegs = opp.legs || 0;
+    out.push({
+      id: m.id,
+      date: m.startedAt,
+      mode: m.mode || 'pvp',
+      level: m.level || null,
+      startScore: m.startScore || 501,
+      me,
+      opp,
+      oppName: (opp.name || '').trim(),
+      myLegs,
+      oppLegs,
+      result: myLegs > oppLegs ? 'win' : (myLegs < oppLegs ? 'loss' : 'draw'),
+      avg: average(me.scored || 0, me.visits || 0),
+      checkoutPct: (me.doubleDarts || 0) > 0 ? ((me.checkouts || []).length / me.doubleDarts) * 100 : null,
+    });
+  }
+  return out.sort((a, b) => (a.date || 0) - (b.date || 0));
+}
+
+export function playerSummary(list) {
+  const s = {
+    matches: list.length, wins: 0, losses: 0, draws: 0, legsWon: 0, legsLost: 0,
+    visits: 0, scored: 0, n180: 0, n140: 0, n100: 0, highScore: 0, highestCheckout: 0,
+    checkouts: 0, doubleDarts: 0, bestLeg: null, bestAverage: null,
+  };
+  for (const e of list) {
+    const p = e.me;
+    if (e.result === 'win') s.wins += 1;
+    else if (e.result === 'loss') s.losses += 1;
+    else s.draws += 1;
+    s.legsWon += e.myLegs;
+    s.legsLost += e.oppLegs;
+    s.visits += p.visits || 0;
+    s.scored += p.scored || 0;
+    s.n180 += p.n180 || 0;
+    s.n140 += p.n140 || 0;
+    s.n100 += p.n100 || 0;
+    s.highScore = Math.max(s.highScore, p.highScore || 0);
+    s.highestCheckout = Math.max(s.highestCheckout, p.highestCheckout || 0);
+    s.checkouts += (p.checkouts || []).length;
+    s.doubleDarts += p.doubleDarts || 0;
+    for (const d of p.legDarts || []) s.bestLeg = s.bestLeg === null ? d : Math.min(s.bestLeg, d);
+    if ((p.visits || 0) >= 9 && e.avg !== null) s.bestAverage = s.bestAverage === null ? e.avg : Math.max(s.bestAverage, e.avg);
+  }
+  s.average = average(s.scored, s.visits);
+  s.winPct = s.matches ? Math.round((s.wins / s.matches) * 100) : null;
+  return s;
+}
+
+// ------------------------------------------------------------- badges ----
+
+const legsAtMost = (n) => (e) => (e.me.legDarts || []).some(d => d <= n);
+const tons = (p) => (p.n100 || 0) + (p.n140 || 0) + (p.n180 || 0);
+const beatBot = (levels) => (e) => e.mode === 'ai' && e.result === 'win' && levels.includes(e.level);
+
+// `test(entry, totals)` runs on each match in order; totals are running sums up to and including it.
+export const BADGES = [
+  { id: 'first-win', name: 'Første sejr', desc: 'Vind en kamp.', icon: 'trophy', test: (e) => e.result === 'win' },
+  { id: 'wins-10', name: 'Vinderen', desc: 'Vind 10 kampe.', icon: 'trophy', test: (e, t) => t.wins >= 10, goal: (t) => [t.wins, 10] },
+  { id: 'whitewash', name: 'Hvidvask', desc: 'Vind en kamp på mindst 3 legs uden at tabe et leg.', icon: 'shield', test: (e) => e.result === 'win' && e.myLegs >= 3 && e.oppLegs === 0 },
+  { id: 'first-180', name: 'Første 180', desc: 'Kast 180.', icon: 'flame', test: (e) => (e.me.n180 || 0) >= 1 },
+  { id: '180-club', name: '180-klubben', desc: 'Kast 180 ti gange i alt.', icon: 'flame', test: (e, t) => t.n180 >= 10, goal: (t) => [t.n180, 10] },
+  { id: 'ton-machine', name: 'Ton-maskine', desc: 'Score 100+ fem gange i én kamp.', icon: 'bolt', test: (e) => tons(e.me) >= 5 },
+  { id: 'avg-50', name: 'Gennemsnit 50+', desc: 'Hav et gennemsnit på 50+ i en kamp (mindst 9 runder).', icon: 'chart', test: (e) => (e.me.visits || 0) >= 9 && e.avg >= 50 },
+  { id: 'avg-70', name: 'Gennemsnit 70+', desc: 'Hav et gennemsnit på 70+ i en kamp (mindst 9 runder).', icon: 'chart', test: (e) => (e.me.visits || 0) >= 9 && e.avg >= 70 },
+  { id: 'ton-finish', name: 'Ton-plus finish', desc: 'Luk et leg på 100 eller mere.', icon: 'target', test: (e) => (e.me.highestCheckout || 0) >= 100 },
+  { id: 'big-fish', name: 'Big Fish', desc: 'Luk på 170: T20, T20, BULL.', icon: 'target', test: (e) => (e.me.checkouts || []).includes(170) },
+  { id: 'double-king', name: 'Doublekongen', desc: 'Checkout på 50 % eller mere i en kamp med mindst 3 checkouts.', icon: 'crown', test: (e) => (e.me.checkouts || []).length >= 3 && e.checkoutPct >= 50 },
+  { id: 'leg-18', name: 'Hurtigt leg', desc: 'Vind et leg på 18 darts eller færre.', icon: 'clock', test: legsAtMost(18) },
+  { id: 'leg-12', name: 'Lynleg', desc: 'Vind et leg på 12 darts eller færre.', icon: 'clock', test: legsAtMost(12) },
+  { id: 'nine-darter', name: '9-darter', desc: 'Vind et leg på 9 darts. Det perfekte leg.', icon: 'star', test: legsAtMost(9) },
+  { id: 'beat-bot', name: 'Slå botten', desc: 'Vind over en bot i Spil mod AI.', icon: 'bot', test: beatBot(['begynder', 'pub', 'liga', 'pro']) },
+  { id: 'beat-liga', name: 'Ligaspiller', desc: 'Vind over Liga-botten.', icon: 'bot', test: beatBot(['liga', 'pro']) },
+  { id: 'beat-pro', name: 'Pro-dræber', desc: 'Vind over Pro-botten.', icon: 'bot', test: beatBot(['pro']) },
+];
+
+// Which badges a player has, and when each was first earned. `list` is from playerMatches().
+export function computeBadges(list) {
+  const totals = { wins: 0, n180: 0 };
+  const earned = {};
+  for (const e of list) {
+    if (e.result === 'win') totals.wins += 1;
+    totals.n180 += e.me.n180 || 0;
+    for (const b of BADGES) {
+      if (!earned[b.id] && b.test(e, totals)) earned[b.id] = e.date || true;
+    }
+  }
+  return BADGES.map(b => {
+    const progress = b.goal ? b.goal(totals) : null;
+    return {
+      id: b.id, name: b.name, desc: b.desc, icon: b.icon,
+      earned: Boolean(earned[b.id]),
+      date: typeof earned[b.id] === 'number' ? earned[b.id] : null,
+      progress: progress && !earned[b.id] ? { have: Math.min(progress[0], progress[1]), need: progress[1] } : null,
+    };
+  });
+}

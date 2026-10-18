@@ -24,6 +24,92 @@
       </div>
 
       <template v-else>
+        <div class="tabs" role="tablist" aria-label="Visning">
+          <button type="button" role="tab" :aria-selected="tab === 'overview' ? 'true' : 'false'" :class="{ selected: tab === 'overview' }" @click="tab = 'overview'">Overblik</button>
+          <button type="button" role="tab" :aria-selected="tab === 'player' ? 'true' : 'false'" :class="{ selected: tab === 'player' }" @click="tab = 'player'">Spiller</button>
+        </div>
+
+        <!-- ================= PLAYER ================= -->
+        <template v-if="tab === 'player'">
+          <section class="block">
+            <label class="picker-field">
+              <span class="sr-only">Vælg spiller</span>
+              <select v-model="profileName">
+                <option v-for="n in names" :key="'p-' + n" :value="n">{{ n }}</option>
+              </select>
+            </label>
+            <div class="tiles">
+              <div v-for="t in tiles" :key="t.label" class="tile">
+                <span class="tile-value" :class="{ gold: t.gold }">{{ t.value }}</span>
+                <span class="tile-label">{{ t.label }}</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="block">
+            <div class="chart-head">
+              <h2 class="section-title">UDVIKLING</h2>
+              <div class="seg-small" role="group" aria-label="Vis">
+                <button type="button" :class="{ selected: metric === 'avg' }" :aria-pressed="metric === 'avg' ? 'true' : 'false'" @click="metric = 'avg'">Gennemsnit</button>
+                <button type="button" :class="{ selected: metric === 'co' }" :aria-pressed="metric === 'co' ? 'true' : 'false'" @click="metric = 'co'">Checkout %</button>
+              </div>
+            </div>
+            <div class="card chart-card">
+              <PlayerChart v-if="chartPoints.length >= 2" :points="chartPoints" :title="metric === 'avg' ? 'Gennemsnit pr. kamp' : 'Checkout % pr. kamp'" :suffix="metric === 'co' ? '%' : ''" />
+              <p v-else class="chart-empty">{{ metric === 'co' ? 'Checkout % kræver mindst 2 kampe, hvor der er svaret på darts på double.' : 'Spil mindst 2 kampe for at se en graf.' }}</p>
+            </div>
+          </section>
+
+          <section class="block">
+            <h2 class="section-title">BADGES <span class="count">{{ earnedCount }}/{{ badges.length }}</span></h2>
+            <div class="badges">
+              <div v-for="b in badges" :key="b.id" class="badge" :class="{ earned: b.earned }">
+                <span class="badge-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="iconPaths[b.icon]" /></svg>
+                </span>
+                <span class="badge-text">
+                  <span class="badge-name">{{ b.name }}</span>
+                  <span class="badge-desc">{{ b.desc }}</span>
+                  <span v-if="b.earned && b.date" class="badge-date">Opnået {{ formatDate(b.date) }}</span>
+                  <span v-else-if="b.progress" class="badge-progress">
+                    <span class="bar"><span :style="{ width: (b.progress.have / b.progress.need * 100) + '%' }"></span></span>
+                    {{ b.progress.have }}/{{ b.progress.need }}
+                  </span>
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section class="block">
+            <h2 class="section-title">KAMPE</h2>
+            <ul class="matches">
+              <li v-for="e in profileListNewest" :key="'pm-' + e.id" class="match">
+                <div class="match-head">
+                  <span class="match-date">{{ formatDate(e.date) }} · {{ e.startScore }}</span>
+                  <span class="result-tag" :class="e.result">{{ e.result === 'win' ? 'SEJR' : (e.result === 'loss' ? 'TAB' : 'UAFGJORT') }}</span>
+                </div>
+                <div class="match-body">
+                  <div class="match-player won">
+                    <span class="mp-name">{{ e.me.name }}</span>
+                    <span class="mp-avg">AVG {{ formatNumber(e.avg) }}</span>
+                  </div>
+                  <div class="match-legs">
+                    <span :class="{ lead: e.myLegs > e.oppLegs }">{{ e.myLegs }}</span>
+                    <span class="dash">–</span>
+                    <span :class="{ lead: e.oppLegs > e.myLegs }">{{ e.oppLegs }}</span>
+                  </div>
+                  <div class="match-player right">
+                    <span class="mp-name">{{ e.oppName }}</span>
+                    <span class="mp-avg">AVG {{ formatNumber(average(e.opp.scored, e.opp.visits)) }}</span>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </section>
+        </template>
+
+        <!-- ================= OVERVIEW ================= -->
+        <template v-else>
         <!-- Head-to-head -->
         <section class="block">
           <h2 class="section-title">HEAD-TO-HEAD</h2>
@@ -120,6 +206,7 @@
           </ul>
           <button type="button" class="delete-all" @click="deleteAll">Slet alle kampe</button>
         </section>
+        </template>
       </template>
     </div>
   </div>
@@ -131,13 +218,33 @@ import { useRoute } from 'vue-router';
 import { getDatabase, ref as firebaseRef, onValue, remove, update } from 'firebase/database';
 import {
   matchList, playerNames, headToHead, records, average, formatNumber, formatPct, formatDate, normalizeName,
+  playerMatches, playerSummary, computeBadges,
 } from '@/matchHistory';
 import { showConfirm } from '@/dialog';
+import { local } from '@/settings';
+import PlayerChart from '@/components/PlayerChart.vue';
+
+const ICON_PATHS = {
+  trophy: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3',
+  shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z',
+  flame: 'M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 2-6 1 1 2 2 2 3 0-3 1-5 1-7z',
+  bolt: 'M13 2L4 14h7l-1 8 9-12h-7l1-8z',
+  chart: 'M4 20V10M10 20V4M16 20v-7M2 20h20',
+  target: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M7 12a5 5 0 1 0 10 0a5 5 0 1 0-10 0M11 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0',
+  crown: 'M3 8l4 4 5-7 5 7 4-4-2 11H5L3 8z',
+  clock: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 7v5l3 2',
+  star: 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9L12 3z',
+  bot: 'M5 8h14v11H5zM12 4v4M9 13h.01M15 13h.01M10 16h4',
+};
 
 export default {
+  components: { PlayerChart },
   setup() {
     const route = useRoute();
     const database = getDatabase();
+    const tab = ref('overview');
+    const metric = ref('avg');
+    const profileName = ref('');
     const loading = ref(true);
     const raw = ref(null);
     const currentMatchId = ref(null);
@@ -168,6 +275,43 @@ export default {
     watch([names, scoreboardNames], pickDefaults);
 
     const h2h = computed(() => headToHead(matches.value, playerA.value, playerB.value));
+
+    // ---- player profile
+    watch([names, scoreboardNames], () => {
+      if (profileName.value && names.value.includes(profileName.value)) return;
+      const find = (n) => names.value.find(x => normalizeName(x) === normalizeName(n));
+      const seatName = local.seat ? scoreboardNames.value[local.seat - 1] : '';
+      profileName.value = find(local.name) || find(seatName) || find(scoreboardNames.value[0]) || names.value[0] || '';
+    }, { immediate: true });
+
+    const profileList = computed(() => playerMatches(matches.value, profileName.value));
+    const profileListNewest = computed(() => [...profileList.value].reverse());
+    const summary = computed(() => playerSummary(profileList.value));
+    const badges = computed(() => computeBadges(profileList.value));
+    const earnedCount = computed(() => badges.value.filter(b => b.earned).length);
+
+    const tiles = computed(() => {
+      const s = summary.value;
+      return [
+        { label: 'Kampe', value: s.matches },
+        { label: 'Sejre', value: s.matches ? `${s.wins} (${s.winPct}%)` : '–' },
+        { label: 'Gennemsnit', value: formatNumber(s.average) },
+        { label: 'Bedste kamp', value: formatNumber(s.bestAverage) },
+        { label: '180', value: s.n180 },
+        { label: 'Checkout %', value: formatPct(s.checkouts, s.doubleDarts) },
+        { label: 'Højeste checkout', value: s.highestCheckout || '–', gold: true },
+        { label: 'Bedste leg', value: s.bestLeg !== null ? `${s.bestLeg} darts` : '–' },
+      ];
+    });
+
+    const chartPoints = computed(() => profileList.value
+      .map(e => ({
+        y: metric.value === 'avg' ? e.avg : e.checkoutPct,
+        label: formatDate(e.date),
+        sub: `${e.result === 'win' ? 'Sejr' : (e.result === 'loss' ? 'Tab' : 'Uafgjort')} ${e.myLegs}–${e.oppLegs} mod ${e.oppName}`,
+      }))
+      .filter(p => p.y !== null && p.y !== undefined && !Number.isNaN(p.y))
+      .map(p => ({ ...p, y: Math.round(p.y * 10) / 10 })));
 
     const h2hRows = computed(() => {
       const { a, b } = h2h.value;
@@ -238,6 +382,7 @@ export default {
     return {
       loading, matches, names, playerA, playerB, h2h, h2hRows, recordCards,
       currentMatchId, backLink, deleteMatch, deleteAll, formatDate, formatNumber, average,
+      tab, metric, profileName, profileListNewest, tiles, chartPoints, badges, earnedCount, iconPaths: ICON_PATHS,
     };
   },
 };
@@ -502,6 +647,242 @@ select {
 
 .row .win {
   color: var(--accent);
+}
+
+/* Tabs */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.tabs button {
+  height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.tabs button.selected {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Player profile */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tile {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tile-value {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 24px;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+@media (max-width: 420px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.seg-small {
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 3px;
+}
+
+.seg-small button {
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.seg-small button.selected {
+  background: var(--key);
+  color: var(--text);
+}
+
+.chart-card {
+  padding: 28px 14px 10px;
+}
+
+.chart-empty {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.count {
+  color: var(--accent);
+  margin-left: 6px;
+}
+
+.badges {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 420px) {
+  .badges {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.badge {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 12px;
+  opacity: 0.55;
+}
+
+.badge.earned {
+  opacity: 1;
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
+
+.badge-icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 12px;
+  background: var(--key);
+  color: var(--faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge.earned .badge-icon {
+  background: var(--gold);
+  color: var(--on-gold);
+}
+
+.badge-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.badge-name {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+
+.badge-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.badge-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold-text);
+  margin-top: 2px;
+}
+
+.badge-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.badge-progress .bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--key);
+  overflow: hidden;
+}
+
+.badge-progress .bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.result-tag {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: var(--key);
+  color: var(--muted);
+}
+
+.result-tag.win {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.result-tag.loss {
+  color: var(--danger);
 }
 
 /* Records */

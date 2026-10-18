@@ -42,9 +42,10 @@
 
         <div class="field">
           <span class="field-label">Hvem starter?</span>
-          <div class="segmented two">
+          <div class="segmented">
             <button type="button" :class="{ selected: setup.starter === 'me' }" @click="setup.starter = 'me'">{{ setup.name || 'Mig' }}</button>
-            <button type="button" :class="{ selected: setup.starter === 'bot' }" @click="setup.starter = 'bot'">{{ botNameFor(setup.level) }}</button>
+            <button type="button" :class="{ selected: setup.starter === 'bot' }" @click="setup.starter = 'bot'">Botten</button>
+            <button type="button" :class="{ selected: setup.starter === 'bull' }" @click="setup.starter = 'bull'">Bull om det</button>
           </div>
         </div>
 
@@ -54,6 +55,24 @@
 
       <!-- ============ PLAY / DONE ============ -->
       <template v-else>
+        <BullsUpPanel
+          v-if="g.phase === 'bull' && g.bull"
+          :names="[g.myName, g.botName]"
+          :results="[g.bull.me, g.bull.bot]"
+          :editable="[true, false]"
+          :thinking="[false, bullThinking]"
+          :closest-winner="g.bull.closest"
+          :round="g.bull.round"
+          :note="bullNote"
+          :closest-question="g.bull.bot === 'out' ? `Begge ramte udenfor. ${g.botName} var ${g.bull.botDist} mm fra midten. Var du tættere?` : ''"
+          :closest-labels="['Ja, mig', 'Nej, botten']"
+          start-text="Start kamp"
+          @set="bullSet"
+          @closest="bullClosest"
+          @rethrow="bullRethrow"
+          @start="bullStart"
+          @cancel="toSetup"
+        />
         <div v-if="g.phase === 'done'" class="result-banner">
           <span>{{ g.legs.me > g.legs.bot ? 'Du vandt kampen!' : g.botName + ' vandt kampen' }}</span>
         </div>
@@ -148,7 +167,9 @@ import { useRoute } from 'vue-router';
 import { getDatabase, ref as firebaseRef, set, push } from 'firebase/database';
 import confetti from 'canvas-confetti';
 import getDartsCheckout from '@/getDartsCheckout';
-import { LEVELS, playVisit, humanVisitResult } from '@/ai/dartBot';
+import { LEVELS, playVisit, humanVisitResult, throwBull } from '@/ai/dartBot';
+import { dartToBull, BULL_LABEL } from '@/bullsUp';
+import BullsUpPanel from '@/components/BullsUpPanel.vue';
 import { buildPlayerSnapshot } from '@/matchHistory';
 import { showAlert, showConfirm } from '@/dialog';
 import { local, shared, buzz } from '@/settings';
@@ -171,6 +192,7 @@ const save = (key, value) => {
 };
 
 export default {
+  components: { BullsUpPanel },
   setup() {
     const route = useRoute();
     const database = getDatabase();
@@ -190,7 +212,7 @@ export default {
     const blankGame = () => ({
       phase: 'setup', level: 'pub', botName: '', myName: '', startScore: 501, legsToWin: 2, starter: 'me',
       legNo: 1, turn: 'me', remaining: { me: 501, bot: 501 }, legs: { me: 0, bot: 0 },
-      me: freshSide(), bot: freshSide(), lastLegWinner: null, legOver: false, matchId: null, startedAt: null,
+      me: freshSide(), bot: freshSide(), lastLegWinner: null, legOver: false, matchId: null, startedAt: null, bull: null,
     });
     const g = reactive(saved && saved.game ? { ...blankGame(), ...saved.game } : blankGame());
 
@@ -199,6 +221,7 @@ export default {
     const botVisit = reactive({ darts: [], shown: 0, total: null });
     let timers = [];
     const botRunning = ref(false);
+    const bullThinking = ref(false);
 
     const legOver = computed(() => g.legOver);
     const myTurn = computed(() => g.phase === 'play' && g.turn === 'me' && !g.legOver && !pendingDouble.value && !botRunning.value);
@@ -303,6 +326,7 @@ export default {
       timers.forEach(clearTimeout);
       timers = [];
       botRunning.value = false;
+      bullThinking.value = false;
     };
 
     const startMatch = () => {
@@ -316,9 +340,50 @@ export default {
         remaining: { me: setup.startScore, bot: setup.startScore },
         matchId: push(firebaseRef(database, 'history/matches')).key, startedAt: Date.now(),
       });
-      g.turn = starterOfLeg(1);
       Object.assign(botVisit, { darts: [], shown: 0, total: null });
       currentScore.value = '';
+      if (setup.starter === 'bull') {
+        g.phase = 'bull';
+        g.starter = null;
+        g.bull = { me: null, bot: null, botDist: null, closest: null, round: 1 };
+        return;
+      }
+      g.turn = starterOfLeg(1);
+      if (g.turn === 'bot') runBot();
+    };
+
+    // ---------- bull om start
+    const bullNote = computed(() => {
+      if (!g.bull || !g.bull.bot) return '';
+      return `${g.botName}: ${BULL_LABEL[g.bull.bot]} · ${g.bull.botDist} mm fra midten`;
+    });
+    const botBullThrow = () => {
+      if (!g.bull || g.bull.bot || bullThinking.value) return;
+      bullThinking.value = true;
+      timers.push(setTimeout(() => {
+        const dart = throwBull(LEVELS[g.level]);
+        if (g.bull) {
+          g.bull.bot = dartToBull(dart);
+          g.bull.botDist = Math.round(dart.dist);
+        }
+        bullThinking.value = false;
+      }, 900));
+    };
+    const bullSet = (i, value) => {
+      if (i !== 0 || !g.bull) return;
+      buzz();
+      g.bull.me = value;
+      botBullThrow();
+    };
+    const bullClosest = (i) => { if (g.bull) g.bull.closest = i; };
+    const bullRethrow = () => {
+      g.bull = { me: null, bot: null, botDist: null, closest: null, round: (g.bull ? g.bull.round : 0) + 1 };
+    };
+    const bullStart = (i) => {
+      g.starter = i === 0 ? 'me' : 'bot';
+      g.bull = null;
+      g.phase = 'play';
+      g.turn = starterOfLeg(1);
       if (g.turn === 'bot') runBot();
     };
 
@@ -446,7 +511,8 @@ export default {
     };
 
     const rematch = () => {
-      Object.assign(setup, { level: g.level, startScore: g.startScore, legsToWin: g.legsToWin, starter: g.starter === 'me' ? 'bot' : 'me', name: g.myName });
+      const starter = setup.starter === 'bull' ? 'bull' : (g.starter === 'me' ? 'bot' : 'me');
+      Object.assign(setup, { level: g.level, startScore: g.startScore, legsToWin: g.legsToWin, starter, name: g.myName });
       startMatch();
     };
 
@@ -464,6 +530,7 @@ export default {
     onMounted(() => {
       // Resume a bot turn that was interrupted by a reload.
       if (g.phase === 'play' && g.turn === 'bot' && !g.legOver) runBot();
+      if (g.phase === 'bull' && g.bull && g.bull.me && !g.bull.bot) botBullThrow();
     });
     onUnmounted(clearTimers);
 
@@ -471,6 +538,7 @@ export default {
       g, setup, levelList, botNameFor, backLink, currentScore, pendingDouble, botVisit, legOver, myTurn,
       fmtAvg, recent, hint, chipText, chipClass, botVisitTotal, statRows,
       startMatch, nextLeg, press, submitMine, answerDouble, rematch, toSetup, quitMatch,
+      bullThinking, bullNote, bullSet, bullClosest, bullRethrow, bullStart,
     };
   },
 };

@@ -21,6 +21,19 @@
         </div>
       </div>
     </div>
+    <BullsUpPanel
+      v-if="bullsUp && !needsPlayer"
+      :names="[player1Name, player2Name]"
+      :results="[bullsUp.p1 || null, bullsUp.p2 || null]"
+      :closest-winner="bullsUp.closest === 0 || bullsUp.closest === 1 ? bullsUp.closest : null"
+      :round="bullsUp.round || 1"
+      :start-text="bullsUp.purpose === 'match' ? 'Start kamp' : 'Start leg'"
+      @set="setBull"
+      @closest="bullClosest"
+      @rethrow="bullRethrow"
+      @start="bullStart"
+      @cancel="bullCancel"
+    />
     <div v-if="starterPrompt && !needsPlayer" class="picker-backdrop">
       <div class="picker" role="dialog" aria-modal="true" aria-labelledby="starter-title">
         <h2 id="starter-title" class="picker-title">Hvem starter?</h2>
@@ -35,6 +48,10 @@
             <span class="picker-name">{{ player2Name }}</span>
           </button>
         </div>
+        <button type="button" class="bull-choice" @click="chooseBull">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /></svg>
+          Bull om det
+        </button>
         <button type="button" class="picker-cancel" @click="starterPrompt = null">Annuller</button>
       </div>
     </div>
@@ -186,9 +203,10 @@ import { buildPlayerSnapshot } from '@/matchHistory';
 import { showAlert, showConfirm, showPrompt } from '@/dialog';
 import { local, shared, buzz } from '@/settings';
 import AppMenu from '@/components/AppMenu.vue';
+import BullsUpPanel from '@/components/BullsUpPanel.vue';
 import confetti from 'canvas-confetti';
 export default {
-  components: { AppMenu },
+  components: { AppMenu, BullsUpPanel },
   setup() {
     const route = useRoute();
     const router = useRouter();
@@ -241,6 +259,8 @@ export default {
     const matchStarter = ref(null);
     // Set while the "Hvem starter?" dialog is open: { type: 'match' } or { type: 'leg', score }
     const starterPrompt = ref(null);
+    // Shared bulls-up state from the database: { purpose, score, p1, p2, closest, round }
+    const bullsUp = ref(null);
     const presetScores = [201, 301, 501, 701, 1000];
 
     // Display helpers for the redesigned UI
@@ -435,6 +455,7 @@ export default {
           player2LowestCheckout.value = data.player2LowestCheckout || null;
           startScore.value = data.startScore || 501;
           matchStarter.value = data.matchStarter === 1 || data.matchStarter === 2 ? data.matchStarter : null;
+          bullsUp.value = data.bullsUp && data.bullsUp.purpose ? data.bullsUp : null;
           player1DoubleDarts.value = data.player1DoubleDarts || [];
           player2DoubleDarts.value = data.player2DoubleDarts || [];
           player1LegDarts.value = data.player1LegDarts || [];
@@ -685,6 +706,28 @@ export default {
       });
     };
 
+    // ---- bulls up (synced, so both phones see the same panel)
+    const chooseBull = () => {
+      const pending = starterPrompt.value;
+      starterPrompt.value = null;
+      if (!pending) return;
+      update(dbRef, { bullsUp: { purpose: pending.type, score: pending.score || null, p1: null, p2: null, closest: null, round: 1 } });
+    };
+    const setBull = (i, value) => update(dbRef, { [`bullsUp/p${i + 1}`]: value });
+    const bullClosest = (i) => update(dbRef, { 'bullsUp/closest': i });
+    const bullRethrow = () => update(dbRef, {
+      'bullsUp/p1': null, 'bullsUp/p2': null, 'bullsUp/closest': null, 'bullsUp/round': ((bullsUp.value && bullsUp.value.round) || 1) + 1,
+    });
+    const bullCancel = () => update(dbRef, { bullsUp: null });
+    const bullStart = (i) => {
+      const state = bullsUp.value;
+      if (!state) return;
+      const winner = i + 1;
+      update(dbRef, { bullsUp: null });
+      if (state.purpose === 'match') startNewMatch(winner);
+      else startLeg(state.score || startScore.value, winner);
+    };
+
     const chooseStarter = (n) => {
       const pending = starterPrompt.value;
       starterPrompt.value = null;
@@ -804,6 +847,13 @@ export default {
       startLeg,
       legStarter,
       matchOver,
+      bullsUp,
+      chooseBull,
+      setBull,
+      bullClosest,
+      bullRethrow,
+      bullCancel,
+      bullStart,
       shared
     };
   }
@@ -951,6 +1001,33 @@ button {
   font-weight: 600;
   letter-spacing: 0.12em;
   color: var(--muted);
+}
+
+.bull-choice {
+  width: 100%;
+  margin-top: 10px;
+  height: 52px;
+  border: 1px dashed var(--accent);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bull-choice svg {
+  color: var(--accent);
+}
+
+.bull-choice:hover {
+  background: var(--key);
 }
 
 .picker-cancel {

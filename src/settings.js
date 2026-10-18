@@ -13,6 +13,8 @@ const localDefaults = {
   theme: 'system', // 'system' | 'dark' | 'light'
   wakeLock: false,
   vibrate: true,
+  voice: false, // speak scores into the microphone
+  voiceLang: 'en', // 'en' | 'da'
 };
 
 export const sharedDefaults = {

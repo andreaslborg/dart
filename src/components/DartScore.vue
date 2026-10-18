@@ -149,6 +149,7 @@
                    autofocus
                    @keyup.enter="submitScore">
           </label>
+          <VoiceInput v-if="voice.enabled.value" :voice="voice" />
           <button class="key delete" type="button" aria-label="Slet sidste tal" @click="deleteLastNum">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z" /><path d="M17 9l-5 6M12 9l5 6" /></svg>
           </button>
@@ -211,9 +212,12 @@ import { showAlert, showConfirm, showPrompt } from '@/dialog';
 import { local, shared, buzz } from '@/settings';
 import AppMenu from '@/components/AppMenu.vue';
 import BullsUpPanel from '@/components/BullsUpPanel.vue';
+import VoiceInput from '@/components/VoiceInput.vue';
+import { useVoiceInput } from '@/useVoiceInput';
+import { dialogState } from '@/dialog';
 import confetti from 'canvas-confetti';
 export default {
-  components: { AppMenu, BullsUpPanel },
+  components: { AppMenu, BullsUpPanel, VoiceInput },
   setup() {
     const route = useRoute();
     const router = useRouter();
@@ -800,6 +804,20 @@ export default {
       }
     }
 
+    // ---- voice input: only on this phone's turn, with nothing else open
+    const myTurnHere = computed(() => {
+      const p = route.query.player;
+      if (p !== '1' && p !== '2') return false;
+      const mine = (p === '1') === Boolean(isPlayer1Turn.value);
+      return mine && !pendingDouble.value && !dialogState.open && !bullsUp.value && !starterPrompt.value && !needsPlayer.value;
+    });
+    const voice = useVoiceInput({
+      canScore: () => myTurnHere.value,
+      onScore: (n) => { currentScore.value = String(n); submitScore(); },
+      sheetOpen: () => Boolean(pendingDouble.value),
+      onDarts: (n) => answerDouble(n),
+    });
+
     onMounted(fetchScores);
     onUnmounted(() => { if (stopListening) stopListening(); });
 
@@ -860,6 +878,7 @@ export default {
       matchOver,
       bullsUp,
       bullOwnIndex,
+      voice,
       chooseBull,
       setBull,
       bullRethrow,

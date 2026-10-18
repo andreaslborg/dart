@@ -115,6 +115,7 @@
               <span class="score-label">SCORE</span>
               <input v-model="currentScore" type="number" inputmode="none" placeholder="0" aria-label="Score" :disabled="!myTurn" @keyup.enter="submitMine">
             </label>
+            <VoiceInput v-if="voice.enabled.value" :voice="voice" />
             <button class="key delete" type="button" aria-label="Slet sidste tal" :disabled="!myTurn" @click="currentScore = String(currentScore).slice(0, -1)">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z" /><path d="M17 9l-5 6M12 9l5 6" /></svg>
             </button>
@@ -166,6 +167,9 @@ import getDartsCheckout from '@/getDartsCheckout';
 import { LEVELS, playVisit, humanVisitResult, throwBull } from '@/ai/dartBot';
 import { dartToBull, BULL_LABEL } from '@/bullsUp';
 import BullsUpPanel from '@/components/BullsUpPanel.vue';
+import VoiceInput from '@/components/VoiceInput.vue';
+import { useVoiceInput } from '@/useVoiceInput';
+import { dialogState } from '@/dialog';
 import { buildPlayerSnapshot } from '@/matchHistory';
 import { showAlert, showConfirm } from '@/dialog';
 import { local, shared, buzz } from '@/settings';
@@ -188,7 +192,7 @@ const save = (key, value) => {
 };
 
 export default {
-  components: { BullsUpPanel },
+  components: { BullsUpPanel, VoiceInput },
   setup() {
     const route = useRoute();
     const database = getDatabase();
@@ -522,6 +526,13 @@ export default {
       }
     };
 
+    const voice = useVoiceInput({
+      canScore: () => myTurn.value && !dialogState.open,
+      onScore: (n) => { currentScore.value = String(n); submitMine(); },
+      sheetOpen: () => Boolean(pendingDouble.value),
+      onDarts: (n) => answerDouble(n),
+    });
+
     onMounted(() => {
       // Resume a bot turn that was interrupted by a reload.
       if (g.phase === 'play' && g.turn === 'bot' && !g.legOver) runBot();
@@ -533,7 +544,7 @@ export default {
       g, setup, levelList, botNameFor, backLink, currentScore, pendingDouble, botVisit, legOver, myTurn,
       fmtAvg, recent, hint, chipText, chipClass, botVisitTotal, statRows,
       startMatch, nextLeg, press, submitMine, answerDouble, rematch, toSetup, quitMatch,
-      bullThinking, bullNote, bullSet, bullRethrow, bullStart,
+      bullThinking, bullNote, bullSet, bullRethrow, bullStart, voice,
     };
   },
 };

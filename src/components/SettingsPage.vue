@@ -58,6 +58,31 @@
         </div>
       </section>
 
+      <!-- Voice -->
+      <section class="block">
+        <h2 class="section-title">STEMMEINPUT</h2>
+        <div class="card">
+          <div class="row">
+            <div class="row-text">
+              <span class="row-label">Sig scoren højt</span>
+              <span class="help">{{ voiceSupported ? 'Tryk på mikrofonen ved score-feltet og sig fx "forty five". Scoren tastes, og Enter trykkes efter en kort nedtælling.' : 'Understøttes ikke i denne browser. Prøv Chrome eller Safari.' }}</span>
+            </div>
+            <button type="button" role="switch" class="switch" :aria-checked="local.voice ? 'true' : 'false'" aria-label="Stemmeinput" :disabled="!voiceSupported" @click="local.voice = !local.voice"><span></span></button>
+          </div>
+          <div v-if="local.voice && voiceSupported" class="row stack">
+            <span class="row-label">Sprog</span>
+            <div class="segmented">
+              <button type="button" :class="{ selected: local.voiceLang === 'en' }" @click="local.voiceLang = 'en'">Engelsk</button>
+              <button type="button" :class="{ selected: local.voiceLang === 'da' }" @click="local.voiceLang = 'da'">Dansk</button>
+            </div>
+            <p class="help">{{ local.voiceLang === 'da'
+              ? 'Fx "femogfyrre", "hundrede og fyrre", "ingen score". Sig "nej" eller "fortryd" for at stoppe en forkert score.'
+              : 'Fx "forty five", "ton forty", "one eighty", "no score". Say "no" or "cancel" to stop a wrong score.' }}</p>
+            <p class="help">Når der spørges om darts på double, kan du sige {{ local.voiceLang === 'da' ? '"nul", "en", "to" eller "tre"' : '"zero", "one", "two" or "three"' }}.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- Shared -->
       <section class="block">
         <h2 class="section-title">FÆLLES FOR KAMPEN</h2>
@@ -141,6 +166,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getDatabase, ref as firebaseRef, onValue, update, remove } from 'firebase/database';
 import { local, shared, setShared, wakeLockSupported, vibrateSupported, buzz } from '@/settings';
+import { voiceSupported } from '@/voice';
 import { showConfirm, showAlert } from '@/dialog';
 
 export default {
@@ -222,7 +248,7 @@ export default {
 
     return {
       local, shared, setShared, names, nameDraft, nameChanged, backLink,
-      wakeLockSupported, vibrateSupported,
+      wakeLockSupported, vibrateSupported, voiceSupported,
       saveName, setSeat, toggleVibrate, resetScoreboard, deleteHistory, logOut,
     };
   },

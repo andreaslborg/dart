@@ -35,7 +35,15 @@
     />
     <div v-if="starterPrompt && !needsPlayer" class="picker-backdrop">
       <div class="picker" role="dialog" aria-modal="true" aria-labelledby="starter-title">
-        <h2 id="starter-title" class="picker-title">Hvem starter?</h2>
+        <template v-if="starterPrompt.type === 'match'">
+          <h2 id="starter-title" class="picker-title">Ny kamp</h2>
+          <span class="picker-label">SPIL</span>
+          <div class="game-pick" role="group" aria-label="Vælg spil">
+            <button v-for="p in presetScores" :key="'g' + p" type="button" :class="{ selected: starterPrompt.score === p }" :aria-pressed="starterPrompt.score === p ? 'true' : 'false'" @click="starterPrompt.score = p">{{ p }}</button>
+          </div>
+          <span class="picker-label">HVEM STARTER?</span>
+        </template>
+        <h2 v-else id="starter-title" class="picker-title">Hvem starter?</h2>
         <p class="picker-sub">Starter leg 1, 3, 5 … Den anden starter leg 2, 4, 6 …</p>
         <div class="picker-options">
           <button type="button" class="picker-option" @click="chooseStarter(1)">
@@ -663,12 +671,12 @@ export default {
 
     const resetWins = async () => {
       if (await showConfirm('Den nuværende kamp er gemt i historikken.', { title: 'Start ny kamp?', confirmText: 'Ny kamp' })) {
-        starterPrompt.value = { type: 'match' };
+        starterPrompt.value = { type: 'match', score: shared.defaultStartScore || 501 };
       }
     };
 
     // Clear the whole match and begin leg 1 with the chosen starter.
-    const startNewMatch = (starter) => {
+    const startNewMatch = (starter, score = shared.defaultStartScore || 501) => {
       update(dbRef, { 
           player1Wins: 0,  
           player2Wins: 0,
@@ -682,9 +690,9 @@ export default {
           secondTurnScorePlayer2: "",
           thirdTurnScorePlayer1: "", 
           thirdTurnScorePlayer2: "",   
-          player1: shared.defaultStartScore,
-          player2: shared.defaultStartScore,
-          startScore: shared.defaultStartScore,
+          player1: score,
+          player2: score,
+          startScore: score,
           player1Scores: [],
           player2Scores: [],
           player1SetScores: [], 
@@ -727,7 +735,7 @@ export default {
       if (!state) return;
       const winner = i + 1;
       update(dbRef, { bullsUp: null });
-      if (state.purpose === 'match') startNewMatch(winner);
+      if (state.purpose === 'match') startNewMatch(winner, state.score || shared.defaultStartScore || 501);
       else startLeg(state.score || startScore.value, winner);
     };
 
@@ -735,7 +743,7 @@ export default {
       const pending = starterPrompt.value;
       starterPrompt.value = null;
       if (!pending) return;
-      if (pending.type === 'match') startNewMatch(n);
+      if (pending.type === 'match') startNewMatch(n, pending.score);
       else startLeg(pending.score, n);
     };
 
@@ -1544,6 +1552,48 @@ button {
   margin: 0 0 12px;
   color: var(--muted);
   font-size: 15px;
+}
+
+.picker-label {
+  align-self: stretch;
+  margin-top: 10px;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-align: left;
+}
+
+.game-pick {
+  align-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 4px;
+}
+
+.game-pick button {
+  height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.game-pick button:hover {
+  color: var(--text);
+}
+
+.game-pick button.selected {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .picker-options {

@@ -17,33 +17,43 @@
         placeholder="Adgangskode"
         autocomplete="current-password"
         :class="{ wrong: error }"
-        @input="error = false"
+        @input="error = ''"
       >
-      <p class="gate-error" role="alert">{{ error ? 'Forkert adgangskode' : '' }}</p>
-      <button type="submit" class="gate-btn">Lås op</button>
+      <p class="gate-error" role="alert">{{ error }}</p>
+      <button type="submit" class="gate-btn" :disabled="busy">{{ busy ? 'Tjekker …' : 'Lås op' }}</button>
     </form>
   </div>
 </template>
 
 <script>
 import { ref, onMounted } from 'vue';
-
-// Simple gate to keep random visitors out. Not real security.
-const PASSWORD = 'Sally';
+import { signInWithPassword } from '@/auth';
 
 export default {
   name: 'PasswordGate',
   emits: ['unlocked'],
   setup(props, { emit }) {
     const password = ref('');
-    const error = ref(false);
+    const error = ref('');
+    const busy = ref(false);
     const input = ref(null);
 
-    const submit = () => {
-      if (password.value.trim().toLowerCase() === PASSWORD.toLowerCase()) {
+    const messages = {
+      wrong: 'Forkert adgangskode',
+      network: 'Ingen forbindelse. Prøv igen.',
+      throttled: 'For mange forsøg. Vent lidt og prøv igen.',
+    };
+
+    const submit = async () => {
+      if (busy.value) return;
+      busy.value = true;
+      error.value = '';
+      const res = await signInWithPassword(password.value);
+      busy.value = false;
+      if (res.ok) {
         emit('unlocked');
       } else {
-        error.value = true;
+        error.value = messages[res.reason] || messages.wrong;
         password.value = '';
         if (input.value) input.value.focus();
       }
@@ -51,7 +61,7 @@ export default {
 
     onMounted(() => { if (input.value) input.value.focus(); });
 
-    return { password, error, input, submit };
+    return { password, error, busy, input, submit };
   },
 };
 </script>

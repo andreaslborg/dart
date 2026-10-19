@@ -177,6 +177,7 @@ import { getDatabase, ref as firebaseRef, onValue, update, remove } from 'fireba
 import { local, shared, setShared, wakeLockSupported, vibrateSupported, buzz } from '@/settings';
 import { voiceSupported } from '@/voice';
 import { showConfirm, showAlert } from '@/dialog';
+import { logOut as authLogOut } from '@/auth';
 
 export default {
   setup() {
@@ -243,7 +244,7 @@ export default {
 
     const logOut = async () => {
       if (!(await showConfirm('Du skal indtaste adgangskoden igen for at bruge siden.', { title: 'Log ud?', confirmText: 'Log ud' }))) return;
-      document.cookie = 'borgdart_access=; Max-Age=0; Path=/';
+      await authLogOut();
       window.location.reload();
     };
 

@@ -1,6 +1,7 @@
 <template>
   <div id="app">
-    <PasswordGate v-if="!unlocked" @unlocked="unlock" />
+    <div v-if="!authState.ready" class="boot" aria-hidden="true"></div>
+    <PasswordGate v-else-if="!unlocked" @unlocked="unlock" />
     <template v-else>
       <router-view/>
       <AppDialog />
@@ -9,15 +10,14 @@
 </template>
 
 <script>
-import { ref } from 'vue';
+import { computed, watch } from 'vue';
 import AppDialog from './components/AppDialog.vue';
 import PasswordGate from './components/PasswordGate.vue';
 import { initDeviceSettings, startSharedSettings } from './settings';
+import { authState, initAuth } from './auth';
 
-const COOKIE = 'borgdart_access';
-const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
-
-const hasAccess = () => document.cookie.split('; ').some(c => c === `${COOKIE}=1`);
+// The old cookie-only gate is replaced by a real Firebase login.
+document.cookie = 'borgdart_access=; Max-Age=0; Path=/';
 
 export default {
   name: 'App',
@@ -27,14 +27,12 @@ export default {
   },
   setup() {
     initDeviceSettings();
-    startSharedSettings();
-    const unlocked = ref(hasAccess());
-    const unlock = () => {
-      const secure = location.protocol === 'https:' ? '; Secure' : '';
-      document.cookie = `${COOKIE}=1; Max-Age=${MAX_AGE}; Path=/; SameSite=Lax${secure}`;
-      unlocked.value = true;
-    };
-    return { unlocked, unlock };
+    initAuth();
+    const unlocked = computed(() => Boolean(authState.user) || authState.legacy);
+    // The database is only read once signed in (the rules require it).
+    watch(unlocked, (on) => { if (on) startSharedSettings(); }, { immediate: true });
+    const unlock = () => {};
+    return { authState, unlocked, unlock };
   },
 }
 </script>
@@ -104,6 +102,11 @@ body {
   min-height: 100%;
   background: var(--bg);
   transition: background-color 0.2s;
+}
+
+.boot {
+  min-height: 100vh;
+  background: var(--bg);
 }
 
 #app {

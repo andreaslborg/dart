@@ -28,7 +28,7 @@ export default {
   setup() {
     initDeviceSettings();
     initAuth();
-    const unlocked = computed(() => Boolean(authState.user) || authState.legacy);
+    const unlocked = computed(() => Boolean(authState.user));
     // The database is only read once signed in (the rules require it).
     watch(unlocked, (on) => { if (on) startSharedSettings(); }, { immediate: true });
     const unlock = () => {};

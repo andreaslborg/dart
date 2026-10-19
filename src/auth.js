@@ -15,7 +15,6 @@ const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // ask again after 30 days
 export const authState = reactive({
   ready: false, // first auth check done
   user: null,
-  legacy: false, // temporary: Firebase login not set up yet
 });
 
 const readTime = () => {
@@ -58,13 +57,6 @@ export async function signInWithPassword(password) {
     writeTime(Date.now());
     return { ok: true };
   } catch (e) {
-    // Temporary bridge until the Firebase account exists: accept the old
-    // password for this session only. Once the database rules are locked this
-    // gives no data access, and it will be removed.
-    if (pw === 'sally' && e.code !== 'auth/network-request-failed') {
-      authState.legacy = true;
-      return { ok: true };
-    }
     if (e.code === 'auth/network-request-failed') return { ok: false, reason: 'network' };
     if (e.code === 'auth/too-many-requests') return { ok: false, reason: 'throttled' };
     return { ok: false, reason: 'wrong' };
@@ -73,6 +65,5 @@ export async function signInWithPassword(password) {
 
 export async function logOut() {
   writeTime(0);
-  authState.legacy = false;
   try { await signOut(getAuth()); } catch (e) { /* ignore */ }
 }

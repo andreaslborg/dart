@@ -235,6 +235,8 @@ const ICON_PATHS = {
   clock: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 7v5l3 2',
   star: 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9L12 3z',
   bot: 'M5 8h14v11H5zM12 4v4M9 13h.01M15 13h.01M10 16h4',
+  calendar: 'M4 6h16v14H4zM4 10h16M9 3v4M15 3v4',
+  medal: 'M8 3l2.5 6M16 3l-2.5 6M6 15a6 6 0 1 0 12 0a6 6 0 1 0-12 0M12 13v4',
 };
 
 export default {

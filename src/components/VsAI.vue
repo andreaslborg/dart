@@ -80,7 +80,37 @@
           </button>
         </div>
 
-        <section class="score-display">
+        <!-- Focus view: your own score big, the bot small underneath -->
+        <section v-if="focusMode" class="focus">
+          <div class="focus-card" :class="{ active: g.turn === 'me' && !legOver && g.phase === 'play' }">
+            <div v-if="g.turn === 'me' && !legOver && g.phase === 'play'" class="turn-tag">DIN TUR</div>
+            <div class="focus-top">
+              <span class="name">{{ g.myName }}</span>
+              <span class="focus-avg">AVG <strong>{{ fmtAvg('me') }}</strong></span>
+            </div>
+            <div class="focus-main">
+              <div class="focus-score">{{ g.remaining.me }}</div>
+              <div v-if="hint('me')" class="focus-co">
+                <span class="focus-co-label">CHECKOUT</span>
+                <span class="focus-co-value">{{ hint('me') }}</span>
+              </div>
+            </div>
+            <div class="focus-recent">
+              <span v-for="i in 3" :key="i" :class="{ first: i === 1 }">{{ recent('me')[i - 1] !== undefined ? recent('me')[i - 1] : '–' }}</span>
+            </div>
+          </div>
+
+          <div class="focus-opp" :class="{ active: g.turn === 'bot' && !legOver && g.phase === 'play' }">
+            <span class="focus-dot" aria-hidden="true"></span>
+            <span class="opp-name">{{ g.botName }}</span>
+            <span v-if="g.turn === 'bot' && !legOver && g.phase === 'play'" class="opp-turn">KASTER</span>
+            <span v-else-if="hint('bot')" class="opp-co">{{ hint('bot') }}</span>
+            <span class="opp-score">{{ g.remaining.bot }}</span>
+            <span class="opp-legs" :title="`Legs: ${g.legs.me}–${g.legs.bot}`">{{ g.legs.me }}<span class="sep">–</span>{{ g.legs.bot }}<span class="sep"> / </span>{{ g.legsToWin }}</span>
+          </div>
+        </section>
+
+        <section v-else class="score-display">
           <div v-for="side in ['me', 'bot']" :key="side" class="player-card" :class="{ active: g.turn === side && !legOver && g.phase === 'play' }">
             <div v-if="g.turn === side && !legOver && g.phase === 'play'" class="turn-tag">{{ side === 'me' ? 'DIN TUR' : 'KASTER' }}</div>
             <div class="name">{{ side === 'me' ? g.myName : g.botName }}</div>
@@ -224,6 +254,7 @@ export default {
     const bullThinking = ref(false);
 
     const legOver = computed(() => g.legOver);
+    const focusMode = computed(() => local.layout === 'focus');
     const myTurn = computed(() => g.phase === 'play' && g.turn === 'me' && !g.legOver && !pendingDouble.value && !botRunning.value);
 
     watch([g, setup], () => save(STORE_KEY, { game: g, setup }), { deep: true });
@@ -544,7 +575,7 @@ export default {
       g, setup, levelList, botNameFor, backLink, currentScore, pendingDouble, botVisit, legOver, myTurn,
       fmtAvg, recent, hint, chipText, chipClass, botVisitTotal, statRows,
       startMatch, nextLeg, press, submitMine, answerDouble, rematch, toSetup, quitMatch,
-      bullThinking, bullNote, bullSet, bullRethrow, bullStart, voice,
+      bullThinking, bullNote, bullSet, bullRethrow, bullStart, voice, focusMode,
     };
   },
 };
@@ -978,6 +1009,209 @@ button:disabled {
   width: 16px;
   height: 2px;
   background: var(--line);
+}
+
+/* Focus view */
+.focus {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.focus-card {
+  position: relative;
+  background: var(--surface);
+  border: 2px solid var(--surface);
+  border-radius: 20px;
+  padding: 16px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s;
+}
+
+.focus-card.active {
+  border-color: var(--accent);
+}
+
+.focus-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.focus-avg {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.focus-avg strong {
+  color: var(--text);
+}
+
+.focus-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.focus-score {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(88px, 30vw, 120px);
+  line-height: 0.82;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-co {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+  padding-bottom: 4px;
+}
+
+.focus-co-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.focus-co-value {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--gold-text);
+  text-align: right;
+  line-height: 1.05;
+}
+
+.focus-co-value.none {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.focus-recent {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.focus-recent span {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 8px;
+  text-align: center;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-recent span.first {
+  color: var(--text);
+}
+
+.focus-opp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid transparent;
+  min-height: 56px;
+}
+
+.focus-opp.active {
+  border-color: var(--accent);
+}
+
+.focus-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.focus-opp.active .focus-dot {
+  background: var(--accent);
+}
+
+.opp-name {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--soft);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.opp-turn {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+
+.opp-co {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.opp-score {
+  margin-left: auto;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 32px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--soft);
+}
+
+.opp-legs {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 15px;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 5px 8px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.opp-legs .sep {
+  color: var(--faint);
+  margin: 0 2px;
 }
 
 /* Bot darts */

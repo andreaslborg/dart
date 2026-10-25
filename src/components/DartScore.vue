@@ -88,6 +88,24 @@
           </div>
         </header>
 
+        <!-- No match running (ended with "Afslut kamp") -->
+        <section v-if="matchEnded" class="idle">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /></svg>
+          <h2 class="idle-title">Ingen kamp i gang</h2>
+          <div v-if="lastMatch" class="idle-last">
+            <span class="idle-label">SENESTE KAMP</span>
+            <div class="idle-result">
+              <span :class="{ won: lastMatch.p1Legs > lastMatch.p2Legs }">{{ lastMatch.p1Name }}</span>
+              <span class="idle-legs">{{ lastMatch.p1Legs }}<span class="sep">–</span>{{ lastMatch.p2Legs }}</span>
+              <span :class="{ won: lastMatch.p2Legs > lastMatch.p1Legs }">{{ lastMatch.p2Name }}</span>
+            </div>
+            <span class="idle-note">{{ lastMatch.saved ? 'Gemt i historikken' : 'Ingen vundne legs, så den blev ikke gemt' }}</span>
+          </div>
+          <button type="button" class="idle-start" @click="openNewMatch">Start ny kamp</button>
+          <router-link :to="historyLink" class="idle-link">Se historik</router-link>
+        </section>
+
+        <template v-else>
         <div v-if="hasWinner" class="winner-banner">
           <span>{{ scoreboardTitle }}</span>
           <button v-if="matchOver" type="button" class="next-leg" @click="resetWins">
@@ -200,12 +218,14 @@
           <div class="actions">
             <button type="button" @click="switchTurns">Skift tur</button>
             <button type="button" @click="undoLastTurn">Fortryd tur</button>
+            <button type="button" @click="endMatch">Afslut kamp</button>
             <button type="button" class="danger" @click="resetWins">Ny kamp</button>
           </div>
         </section>
+        </template>
       </div>
 
-      <section class="col-stats">
+      <section v-if="!matchEnded" class="col-stats">
         <h2 class="section-title">STATS</h2>
         <div class="stats">
           <div class="stats-row head">
@@ -303,6 +323,9 @@ export default {
     const starterPrompt = ref(null);
     // Shared bulls-up state from the database: { purpose, score, p1, p2, round }
     const bullsUp = ref(null);
+    // Set by "Afslut kamp": the board is cleared and waits for a new match.
+    const matchEnded = ref(false);
+    const lastMatch = ref(null);
     const presetScores = [201, 301, 501, 701, 1000];
 
     // Display helpers for the redesigned UI
@@ -516,6 +539,8 @@ export default {
           player2LowestCheckout.value = data.player2LowestCheckout || null;
           startScore.value = data.startScore || 501;
           matchStarter.value = data.matchStarter === 1 || data.matchStarter === 2 ? data.matchStarter : null;
+          matchEnded.value = Boolean(data.matchEnded);
+          lastMatch.value = data.lastMatch || null;
           bullsUp.value = data.bullsUp && data.bullsUp.purpose ? data.bullsUp : null;
           player1DoubleDarts.value = data.player1DoubleDarts || [];
           player2DoubleDarts.value = data.player2DoubleDarts || [];
@@ -536,6 +561,10 @@ export default {
 
     const submitScore = () => {
       buzz();
+      if (matchEnded.value) {
+        showAlert('Start en ny kamp først.', { title: 'Ingen kamp i gang' });
+        return;
+      }
       const playerNum = route.query.player;
       if (!playerNum || (playerNum !== '1' && playerNum !== '2')) {
         showAlert('Vælg først hvilken spiller du er.', { title: 'Hvem er du?' });
@@ -730,41 +759,75 @@ export default {
     };
 
     // Clear the whole match and begin leg 1 with the chosen starter.
+    // Everything that belongs to one match, reset to a clean board.
+    const freshMatchFields = (score) => ({
+      player1Wins: 0,
+      player2Wins: 0,
+      player1Checkout: '',
+      player2Checkout: '',
+      lastTurnScorePlayer1: 0,
+      lastTurnScorePlayer2: 0,
+      secondTurnScorePlayer1: '',
+      secondTurnScorePlayer2: '',
+      thirdTurnScorePlayer1: '',
+      thirdTurnScorePlayer2: '',
+      player1: score,
+      player2: score,
+      startScore: score,
+      player1Scores: [],
+      player2Scores: [],
+      player1SetScores: [],
+      player2SetScores: [],
+      player1HighestCheckout: null,
+      player2HighestCheckout: null,
+      player1LowestCheckout: null,
+      player2LowestCheckout: null,
+      player1DoubleDarts: [],
+      player2DoubleDarts: [],
+      player1LegDarts: [],
+      player2LegDarts: [],
+      player1Checkouts: [],
+      player2Checkouts: [],
+      currentMatchId: null,
+      matchStartedAt: null,
+      bullsUp: null,
+      scoreboardTitle: 'Borg Dart',
+    });
+
     const startNewMatch = (starter, score = shared.defaultStartScore || 501) => {
-      update(dbRef, { 
-          player1Wins: 0,  
-          player2Wins: 0,
-          player1Checkout: "", 
-          player2Checkout: "", 
-          isPlayer1Turn: starter === 1,
-          matchStarter: starter,
-          lastTurnScorePlayer1: 0, 
-          lastTurnScorePlayer2: 0,
-          secondTurnScorePlayer1: "", 
-          secondTurnScorePlayer2: "",
-          thirdTurnScorePlayer1: "", 
-          thirdTurnScorePlayer2: "",   
-          player1: score,
-          player2: score,
-          startScore: score,
-          player1Scores: [],
-          player2Scores: [],
-          player1SetScores: [], 
-          player2SetScores: [],
-          player1HighestCheckout: null,
-          player2HighestCheckout: null,
-          player1LowestCheckout: null,
-          player2LowestCheckout: null,
-          player1DoubleDarts: [],
-          player2DoubleDarts: [],
-          player1LegDarts: [],
-          player2LegDarts: [],
-          player1Checkouts: [],
-          player2Checkouts: [],
-          currentMatchId: null,
-          matchStartedAt: null,
-          scoreboardTitle: 'Borg Dart' 
+      update(dbRef, {
+        ...freshMatchFields(score),
+        isPlayer1Turn: starter === 1,
+        matchStarter: starter,
+        matchEnded: null,
       });
+    };
+
+    // Stop the current match without starting a new one. It stays in the history.
+    const endMatch = async () => {
+      const saved = Boolean(currentMatchId.value);
+      const msg = saved
+        ? 'Kampen er gemt i historikken. Scoreboardet ryddes, og I kan starte en ny kamp, når I er klar.'
+        : 'Ingen har vundet et leg endnu, så kampen bliver ikke gemt. Scoreboardet ryddes.';
+      if (!(await showConfirm(msg, { title: 'Afslut kamp?', confirmText: 'Afslut' }))) return;
+      update(dbRef, {
+        ...freshMatchFields(shared.defaultStartScore || 501),
+        isPlayer1Turn: true,
+        matchStarter: null,
+        matchEnded: true,
+        lastMatch: {
+          p1Name: player1Name.value,
+          p2Name: player2Name.value,
+          p1Legs: player1Wins.value || 0,
+          p2Legs: player2Wins.value || 0,
+          saved,
+          endedAt: Date.now(),
+        },
+      });
+    };
+
+    const openNewMatch = () => {
+      starterPrompt.value = { type: 'match', score: shared.defaultStartScore || 501 };
     };
 
     // ---- bulls up (synced, so both phones see the same panel)
@@ -859,7 +922,7 @@ export default {
       const p = route.query.player;
       if (p !== '1' && p !== '2') return false;
       const mine = (p === '1') === Boolean(isPlayer1Turn.value);
-      return mine && !pendingDouble.value && !dialogState.open && !bullsUp.value && !starterPrompt.value && !needsPlayer.value;
+      return mine && !matchEnded.value && !pendingDouble.value && !dialogState.open && !bullsUp.value && !starterPrompt.value && !needsPlayer.value;
     });
     const voice = useVoiceInput({
       canScore: () => myTurnHere.value,
@@ -927,6 +990,10 @@ export default {
       legStarter,
       matchOver,
       bullsUp,
+      matchEnded,
+      lastMatch,
+      endMatch,
+      openNewMatch,
       bullOwnIndex,
       voice,
       focusView,
@@ -1288,6 +1355,120 @@ button {
   background: var(--line);
 }
 
+/* Idle (no match running) */
+.idle {
+  margin-top: 24px;
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 28px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  color: var(--text);
+}
+
+.idle > svg {
+  color: var(--accent);
+}
+
+.idle-title {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 30px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.idle-last {
+  width: 100%;
+  background: var(--bg);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.idle-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.idle-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 19px;
+  text-transform: uppercase;
+  color: var(--soft);
+}
+
+.idle-result > span:first-child {
+  text-align: right;
+}
+
+.idle-result > span:last-child {
+  text-align: left;
+}
+
+.idle-result .won {
+  color: var(--text);
+}
+
+.idle-legs {
+  font-weight: 800;
+  font-size: 28px;
+  color: var(--text);
+}
+
+.idle-legs .sep {
+  color: var(--faint);
+  margin: 0 4px;
+}
+
+.idle-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.idle-start {
+  width: 100%;
+  height: 56px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.idle-start:hover {
+  background: var(--accent-hover);
+}
+
+.idle-link {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px;
+}
+
+.idle-link:hover {
+  color: var(--text);
+}
+
 /* Focus view */
 .focus {
   display: flex;
@@ -1635,7 +1816,7 @@ button {
 
 .actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 

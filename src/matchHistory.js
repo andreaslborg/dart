@@ -226,15 +226,41 @@ export const BADGES = [
   { id: 'beat-bot', name: 'Slå botten', desc: 'Vind over en bot i Spil mod AI.', icon: 'bot', test: beatBot(['begynder', 'pub', 'liga', 'pro']) },
   { id: 'beat-liga', name: 'Ligaspiller', desc: 'Vind over Liga-botten.', icon: 'bot', test: beatBot(['liga', 'pro']) },
   { id: 'beat-pro', name: 'Pro-dræber', desc: 'Vind over Pro-botten.', icon: 'bot', test: beatBot(['pro']) },
+  { id: 'bot-sweep', name: 'Bot-sweep', desc: 'Vind over alle fire bots: Begynder, Pub, Liga og Pro.', icon: 'bot', test: (e, t) => t.botsBeaten.size >= 4, goal: (t) => [t.botsBeaten.size, 4] },
+  { id: 'streak-3', name: 'Sejrsstime', desc: 'Vind 3 kampe i træk.', icon: 'bolt', test: (e, t) => t.streak >= 3, goal: (t) => [t.bestStreak, 3] },
+  { id: 'streak-5', name: 'Uovervindelig', desc: 'Vind 5 kampe i træk.', icon: 'bolt', test: (e, t) => t.streak >= 5, goal: (t) => [t.bestStreak, 5] },
+  { id: 'matches-25', name: 'Stamgæst', desc: 'Spil 25 kampe.', icon: 'calendar', test: (e, t) => t.matches >= 25, goal: (t) => [t.matches, 25] },
+  { id: 'matches-100', name: 'Veteran', desc: 'Spil 100 kampe.', icon: 'calendar', test: (e, t) => t.matches >= 100, goal: (t) => [t.matches, 100] },
+  { id: 'max-3', name: 'Maksimum-maskinen', desc: 'Kast 180 tre gange i én kamp.', icon: 'flame', test: (e) => (e.me.n180 || 0) >= 3 },
+  { id: 'tons-50', name: 'Ton-samler', desc: 'Score 100+ i 50 runder i alt.', icon: 'bolt', test: (e, t) => t.tons >= 50, goal: (t) => [t.tons, 50] },
+  { id: 'avg-90', name: 'Gennemsnit 90+', desc: 'Hav et gennemsnit på 90+ i en kamp (mindst 9 runder).', icon: 'chart', test: (e) => (e.me.visits || 0) >= 9 && e.avg >= 90 },
+  { id: 'bull-finish', name: 'Bullseye-finish', desc: 'Luk et leg på præcis 50.', icon: 'target', test: (e) => (e.me.checkouts || []).includes(50) },
+  { id: 'finish-120', name: 'Fantastisk finish', desc: 'Luk et leg på 120 eller mere.', icon: 'target', test: (e) => (e.me.highestCheckout || 0) >= 120 },
+  { id: 'closer-25', name: 'Lukkeren', desc: 'Luk 25 legs i alt.', icon: 'medal', test: (e, t) => t.checkouts >= 25, goal: (t) => [t.checkouts, 25] },
+  { id: 'sharpshooter', name: 'Skarpskytte', desc: '100 % checkout i en kamp med mindst 2 checkouts.', icon: 'crown', test: (e) => (e.me.checkouts || []).length >= 2 && e.checkoutPct >= 100 },
+  { id: 'marathon', name: 'Maraton', desc: 'Vind en kamp i 1000.', icon: 'medal', test: (e) => e.result === 'win' && e.startScore === 1000 },
+  { id: 'sprinter', name: 'Sprinter', desc: 'Vind en kamp i 201.', icon: 'clock', test: (e) => e.result === 'win' && e.startScore === 201 },
 ];
 
 // Which badges a player has, and when each was first earned. `list` is from playerMatches().
 export function computeBadges(list) {
-  const totals = { wins: 0, n180: 0 };
+  const totals = {
+    wins: 0, n180: 0, matches: 0, streak: 0, bestStreak: 0, tons: 0, checkouts: 0, botsBeaten: new Set(),
+  };
   const earned = {};
   for (const e of list) {
-    if (e.result === 'win') totals.wins += 1;
+    totals.matches += 1;
+    if (e.result === 'win') {
+      totals.wins += 1;
+      totals.streak += 1;
+      totals.bestStreak = Math.max(totals.bestStreak, totals.streak);
+      if (e.mode === 'ai' && e.level) totals.botsBeaten.add(e.level);
+    } else {
+      totals.streak = 0;
+    }
     totals.n180 += e.me.n180 || 0;
+    totals.tons += tons(e.me);
+    totals.checkouts += (e.me.checkouts || []).length;
     for (const b of BADGES) {
       if (!earned[b.id] && b.test(e, totals)) earned[b.id] = e.date || true;
     }

@@ -203,6 +203,11 @@ html.game-locked .q-row {
   html.game-locked .local .active-meta { display: none; }
   html.game-locked .local .queue { gap: 4px; }
   html.game-locked .local .q-row { min-height: 32px; padding-top: 2px; padding-bottom: 2px; }
+  html.game-locked .page-title { white-space: nowrap; font-size: 22px; }
+  html.game-locked .ai .focus-card { padding-top: 10px; padding-bottom: 10px; }
+  html.game-locked .ai .focus-score { font-size: clamp(56px, 11vh, 96px); }
+  html.game-locked .ai .focus-recent { display: none; }
+  html.game-locked .ai .bot-darts { padding-top: 4px; padding-bottom: 4px; min-height: 0; }
 }
 
 .boot {

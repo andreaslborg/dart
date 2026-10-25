@@ -83,7 +83,7 @@
             <span class="brand-word">BORG<span class="accent">DART</span></span>
           </div>
           <div class="top-right">
-            <div class="pill">{{ startScore }} · LEG {{ legNumber }}</div>
+            <div v-if="!matchEnded" class="pill">{{ startScore }} · LEG {{ legNumber }}</div>
             <AppMenu />
           </div>
         </header>

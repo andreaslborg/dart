@@ -34,7 +34,7 @@
           <section class="block">
             <label class="picker-field">
               <span class="sr-only">Vælg spiller</span>
-              <select v-model="profileName">
+              <select v-model="profileName" @change="onProfilePick">
                 <option v-for="n in names" :key="'p-' + n" :value="n">{{ n }}</option>
               </select>
             </label>
@@ -279,13 +279,17 @@ export default {
     const h2h = computed(() => headToHead(matches.value, playerA.value, playerB.value));
 
     // ---- player profile
+    // Keep re-picking the default until the user chooses a player themselves,
+    // because history and scoreboard names can arrive in either order.
+    let profilePickedByUser = false;
     watch([names, scoreboardNames], () => {
-      if (profileName.value && names.value.includes(profileName.value)) return;
+      if (profilePickedByUser && names.value.includes(profileName.value)) return;
       const find = (n) => names.value.find(x => normalizeName(x) === normalizeName(n));
       const seatName = local.seat ? scoreboardNames.value[local.seat - 1] : '';
       profileName.value = find(local.name) || find(seatName) || find(scoreboardNames.value[0]) || names.value[0] || '';
     }, { immediate: true });
 
+    const onProfilePick = () => { profilePickedByUser = true; };
     const profileList = computed(() => playerMatches(matches.value, profileName.value));
     const profileListNewest = computed(() => [...profileList.value].reverse());
     const summary = computed(() => playerSummary(profileList.value));
@@ -384,7 +388,7 @@ export default {
     return {
       loading, matches, names, playerA, playerB, h2h, h2hRows, recordCards,
       currentMatchId, backLink, deleteMatch, deleteAll, formatDate, formatNumber, average,
-      tab, metric, profileName, profileListNewest, tiles, chartPoints, badges, earnedCount, iconPaths: ICON_PATHS,
+      tab, metric, profileName, onProfilePick, profileListNewest, tiles, chartPoints, badges, earnedCount, iconPaths: ICON_PATHS,
     };
   },
 };

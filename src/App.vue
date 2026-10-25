@@ -181,7 +181,7 @@ html.game-locked .lock-col > .lock-col {
 html.game-locked .keypad {
   flex: 1;
   min-height: 0;
-  grid-auto-rows: minmax(0, 1fr);
+  grid-auto-rows: minmax(40px, 1fr);
 }
 
 html.game-locked .keypad .key {
@@ -193,6 +193,16 @@ html.game-locked .q-row {
   min-height: 40px;
   padding-top: 4px;
   padding-bottom: 4px;
+}
+
+/* Local game locked on a short phone: shrink the active card and queue. */
+@media (max-height: 780px) {
+  html.game-locked .local .active-card { padding: 8px 14px 10px; gap: 2px; }
+  html.game-locked .local .active-name { font-size: 24px; margin-top: 2px; }
+  html.game-locked .local .active-score { font-size: clamp(52px, 10vh, 84px); }
+  html.game-locked .local .active-meta { display: none; }
+  html.game-locked .local .queue { gap: 4px; }
+  html.game-locked .local .q-row { min-height: 32px; padding-top: 2px; padding-bottom: 2px; }
 }
 
 .boot {

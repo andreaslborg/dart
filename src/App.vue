@@ -96,6 +96,26 @@ export default {
   color-scheme: light;
 }
 
+/* Stop iPhone zooming in when keys are tapped quickly (e.g. "0", "0"). */
+html {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
+button,
+a,
+input,
+select,
+label {
+  touch-action: manipulation;
+}
+
+button {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 html,
 body {
   margin: 0;

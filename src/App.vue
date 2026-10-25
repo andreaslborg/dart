@@ -132,9 +132,79 @@ body {
   transition: background-color 0.2s;
 }
 
+/* ---------- "Lås til spil": one fixed screen, no scrolling ---------- */
+html.game-locked,
+html.game-locked body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.game-locked body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+}
+
+html.game-locked .lock-hide {
+  display: none !important;
+}
+
+html.game-locked .game-screen {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-top: max(10px, env(safe-area-inset-top));
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+}
+
+html.game-locked .game-screen > .lock-col {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+html.game-locked .lock-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 10px;
+}
+
+html.game-locked .lock-col > .lock-col {
+  flex: 1;
+}
+
+/* The keypad takes whatever height is left. */
+html.game-locked .keypad {
+  flex: 1;
+  min-height: 0;
+  grid-auto-rows: minmax(0, 1fr);
+}
+
+html.game-locked .keypad .key {
+  height: auto;
+  min-height: 40px;
+}
+
+html.game-locked .q-row {
+  min-height: 40px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
 .boot {
   min-height: 100vh;
   background: var(--bg);
+}
+
+/* Opened from the home screen on iPhone the page runs under the status bar:
+   keep content clear of the notch and the home indicator. */
+html:not(.game-locked) #app {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 #app {

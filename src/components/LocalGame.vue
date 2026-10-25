@@ -1,12 +1,13 @@
 <template>
-  <div class="local">
-    <div class="wrap">
+  <div class="local game-screen">
+    <div class="wrap lock-col">
       <header class="topbar">
         <router-link :to="backLink" class="icon-link" aria-label="Tilbage til scoreboard" title="Tilbage">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
         </router-link>
         <h1 class="page-title">LOKALT</h1>
         <div v-if="g.phase === 'play' || g.phase === 'done'" class="pill">{{ g.startScore }} · LEG {{ g.legNo }} · TIL {{ g.legsToWin }}</div>
+        <LockButton :available="g.phase === 'play' || g.phase === 'done'" />
       </header>
 
       <!-- ===================== SETUP ===================== -->
@@ -179,7 +180,7 @@
             </div>
           </template>
 
-          <section class="stats-block">
+          <section class="stats-block lock-hide">
             <h2 class="section-title">STATS</h2>
             <div class="stats" :style="{ '--cols': g.players.length }">
               <div class="stats-row head">
@@ -235,6 +236,7 @@ import { showAlert, showConfirm, dialogState } from '@/dialog';
 import { local, shared, buzz } from '@/settings';
 import { useVoiceInput } from '@/useVoiceInput';
 import VoiceInput from '@/components/VoiceInput.vue';
+import LockButton from '@/components/LockButton.vue';
 import {
   makeSides, sideStarterForLeg, throwerOf, standings, resolveBullMulti, turnLabel, SIDE_COLORS,
 } from '@/localGame';
@@ -249,7 +251,7 @@ const save = (v) => {
 const freshPlayerStats = () => ({ visits: [], doubleDarts: [], legDarts: [], checkouts: [], highestCheckout: 0 });
 
 export default {
-  components: { VoiceInput },
+  components: { VoiceInput, LockButton },
   setup() {
     const route = useRoute();
     const database = getDatabase();
@@ -658,6 +660,9 @@ button:disabled {
 }
 
 .pill {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-family: var(--display);
   font-weight: 600;
   font-size: 14px;

@@ -1,5 +1,5 @@
 <template>
-  <div class="dart-score">
+  <div class="dart-score game-screen">
     <div v-if="needsPlayer" class="picker-backdrop">
       <div class="picker" role="dialog" aria-modal="true" aria-labelledby="picker-title">
         <svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true">
@@ -71,8 +71,8 @@
         </div>
       </div>
     </div>
-    <div class="layout">
-      <div class="col-main">
+    <div class="layout lock-col">
+      <div class="col-main lock-col">
         <header class="topbar">
           <div class="brand">
             <svg class="brand-mark" width="34" height="34" viewBox="0 0 48 48" aria-hidden="true">
@@ -84,6 +84,7 @@
           </div>
           <div class="top-right">
             <div v-if="!matchEnded" class="pill">{{ startScore }} · LEG {{ legNumber }}</div>
+            <LockButton :available="!matchEnded" />
             <AppMenu />
           </div>
         </header>
@@ -211,21 +212,21 @@
         </div>
 
         <section class="settings">
-          <h2 class="section-title">SPIL</h2>
-          <div class="segmented">
+          <h2 class="section-title lock-hide">SPIL</h2>
+          <div class="segmented lock-hide">
             <button v-for="p in presetScores" :key="p" type="button" :class="{ selected: p === startScore }" @click="setPredefinedScore(p)">{{ p }}</button>
           </div>
           <div class="actions">
             <button type="button" @click="switchTurns">Skift tur</button>
             <button type="button" @click="undoLastTurn">Fortryd tur</button>
-            <button type="button" @click="endMatch">Afslut kamp</button>
-            <button type="button" class="danger" @click="resetWins">Ny kamp</button>
+            <button type="button" class="lock-hide" @click="endMatch">Afslut kamp</button>
+            <button type="button" class="danger lock-hide" @click="resetWins">Ny kamp</button>
           </div>
         </section>
         </template>
       </div>
 
-      <section v-if="!matchEnded" class="col-stats">
+      <section v-if="!matchEnded" class="col-stats lock-hide">
         <h2 class="section-title">STATS</h2>
         <div class="stats">
           <div class="stats-row head">
@@ -262,13 +263,14 @@ import { buildPlayerSnapshot } from '@/matchHistory';
 import { showAlert, showConfirm, showPrompt } from '@/dialog';
 import { local, shared, buzz } from '@/settings';
 import AppMenu from '@/components/AppMenu.vue';
+import LockButton from '@/components/LockButton.vue';
 import BullsUpPanel from '@/components/BullsUpPanel.vue';
 import VoiceInput from '@/components/VoiceInput.vue';
 import { useVoiceInput } from '@/useVoiceInput';
 import { dialogState } from '@/dialog';
 import confetti from 'canvas-confetti';
 export default {
-  components: { AppMenu, BullsUpPanel, VoiceInput },
+  components: { AppMenu, BullsUpPanel, VoiceInput, LockButton },
   setup() {
     const route = useRoute();
     const router = useRouter();
@@ -1073,7 +1075,10 @@ button {
 .top-right {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  flex: 1;
+  min-width: 0;
 }
 
 .icon-link {
@@ -1096,12 +1101,16 @@ button {
 .pill {
   font-family: var(--display);
   font-weight: 600;
-  font-size: 15px;
-  letter-spacing: 0.08em;
+  font-size: 14px;
+  letter-spacing: 0.06em;
   color: var(--muted);
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 6px 10px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .winner-banner {

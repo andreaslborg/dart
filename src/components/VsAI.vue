@@ -1,12 +1,13 @@
 <template>
-  <div class="ai">
-    <div class="wrap">
+  <div class="ai game-screen">
+    <div class="wrap lock-col">
       <header class="topbar">
         <router-link :to="backLink" class="icon-link" aria-label="Tilbage til scoreboard" title="Tilbage">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
         </router-link>
         <h1 class="page-title">SPIL MOD AI</h1>
         <div class="pill" v-if="g.phase === 'play'">{{ g.startScore }} · LEG {{ g.legNo }}</div>
+        <LockButton :available="g.phase === 'play' || g.phase === 'done'" />
       </header>
 
       <!-- ============ SETUP ============ -->
@@ -157,7 +158,7 @@
           </div>
         </template>
 
-        <section class="stats-block">
+        <section class="stats-block lock-hide">
           <h2 class="section-title">STATS</h2>
           <div class="stats">
             <div class="stats-row head"><span></span><span>{{ g.myName }}</span><span>{{ g.botName }}</span></div>
@@ -197,6 +198,7 @@ import getDartsCheckout from '@/getDartsCheckout';
 import { LEVELS, playVisit, humanVisitResult, throwBull } from '@/ai/dartBot';
 import { dartToBull, BULL_LABEL } from '@/bullsUp';
 import BullsUpPanel from '@/components/BullsUpPanel.vue';
+import LockButton from '@/components/LockButton.vue';
 import VoiceInput from '@/components/VoiceInput.vue';
 import { useVoiceInput } from '@/useVoiceInput';
 import { dialogState } from '@/dialog';
@@ -222,7 +224,7 @@ const save = (key, value) => {
 };
 
 export default {
-  components: { BullsUpPanel, VoiceInput },
+  components: { BullsUpPanel, VoiceInput, LockButton },
   setup() {
     const route = useRoute();
     const database = getDatabase();
@@ -652,6 +654,10 @@ button:disabled {
 }
 
 .pill {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-family: var(--display);
   font-weight: 600;
   font-size: 15px;

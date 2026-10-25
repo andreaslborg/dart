@@ -3,6 +3,7 @@ import DartScore from '../components/DartScore.vue';
 import MatchHistory from '../components/MatchHistory.vue';
 import VsAI from '../components/VsAI.vue';
 import SettingsPage from '../components/SettingsPage.vue';
+import LocalGame from '../components/LocalGame.vue';
 
 const routes = [
   {
@@ -19,6 +20,11 @@ const routes = [
     path: '/ai',
     name: 'AI',
     component: VsAI,
+  },
+  {
+    path: '/lokalt',
+    name: 'Lokalt',
+    component: LocalGame,
   },
   {
     path: '/indstillinger',

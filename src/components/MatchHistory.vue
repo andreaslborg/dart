@@ -178,7 +178,7 @@
           <ul class="matches">
             <li v-for="m in matches" :key="m.id" class="match">
               <div class="match-head">
-                <span class="match-date">{{ formatDate(m.startedAt) }} · {{ m.startScore || 501 }}</span>
+                <span class="match-date">{{ formatDate(m.startedAt) }} · {{ m.startScore || 501 }}<template v-if="m.mode === 'local'"> · {{ m.teams ? 'Hold' : 'Lokalt' }}</template></span>
                 <span class="match-tools">
                   <span v-if="m.id === currentMatchId" class="live-tag">I GANG</span>
                   <button type="button" class="delete" :aria-label="'Slet kamp ' + formatDate(m.startedAt)" @click="deleteMatch(m)">
@@ -187,7 +187,15 @@
                   </button>
                 </span>
               </div>
-              <div class="match-body">
+              <!-- 3-4 players or teams: one row per side, most legs first -->
+              <ul v-if="!isOneVsOne(m)" class="multi-body">
+                <li v-for="side in matchSides(m)" :key="side.key" :class="{ won: side.won }">
+                  <span class="ms-name">{{ side.name }}</span>
+                  <span class="ms-avg">AVG {{ formatNumber(side.avg) }}</span>
+                  <span class="ms-legs">{{ side.legs }}</span>
+                </li>
+              </ul>
+              <div v-else class="match-body">
                 <div class="match-player" :class="{ won: m.players.p1.legs > m.players.p2.legs }">
                   <span class="mp-name">{{ m.players.p1.name }}</span>
                   <span class="mp-avg">AVG {{ formatNumber(average(m.players.p1.scored, m.players.p1.visits)) }}</span>
@@ -218,7 +226,7 @@ import { useRoute } from 'vue-router';
 import { getDatabase, ref as firebaseRef, onValue, remove, update } from 'firebase/database';
 import {
   matchList, playerNames, headToHead, records, average, formatNumber, formatPct, formatDate, normalizeName,
-  playerMatches, playerSummary, computeBadges,
+  playerMatches, playerSummary, computeBadges, allPlayers, isOneVsOne,
 } from '@/matchHistory';
 import { showConfirm } from '@/dialog';
 import { local } from '@/settings';
@@ -354,8 +362,29 @@ export default {
     // Forget the running match id so the scoreboard doesn't write it back.
     const detachCurrentMatch = () => update(firebaseRef(database, 'scores'), { currentMatchId: null, matchStartedAt: null });
 
+    // Sides of a multi-player match for the list: teams are combined.
+    const matchSides = (m) => {
+      const players = allPlayers(m);
+      let sides;
+      if (m.teams) {
+        sides = m.teams.map((t, i) => {
+          const ps = t.map(idx => players[idx]).filter(Boolean);
+          const scored = ps.reduce((a, p) => a + (p.scored || 0), 0);
+          const visits = ps.reduce((a, p) => a + (p.visits || 0), 0);
+          return { key: `t${i}`, name: ps.map(p => p.name).join(' & '), legs: (ps[0] && ps[0].legs) || 0, avg: average(scored, visits) };
+        });
+      } else {
+        sides = players.map((p, i) => ({ key: `p${i}`, name: p.name, legs: p.legs || 0, avg: average(p.scored || 0, p.visits || 0) }));
+      }
+      const top = Math.max(...sides.map(x => x.legs));
+      const leaders = sides.filter(x => x.legs === top).length;
+      return sides.map(x => ({ ...x, won: x.legs === top && leaders === 1 })).sort((a, b) => b.legs - a.legs);
+    };
+
     const deleteMatch = async (m) => {
-      const label = `${m.players.p1.name} ${m.players.p1.legs}–${m.players.p2.legs} ${m.players.p2.name}`;
+      const label = isOneVsOne(m)
+        ? `${m.players.p1.name} ${m.players.p1.legs}–${m.players.p2.legs} ${m.players.p2.name}`
+        : matchSides(m).map(x => `${x.name} ${x.legs}`).join(', ');
       const live = m.id === currentMatchId.value;
       const extra = live ? '\n\nKampen er i gang. Den bliver gemt igen som en ny kamp, når næste leg er vundet.' : '';
       if (await showConfirm(`${label}, ${formatDate(m.startedAt)}.${extra}`, { title: 'Slet kamp?', confirmText: 'Slet', danger: true })) {
@@ -388,7 +417,7 @@ export default {
     return {
       loading, matches, names, playerA, playerB, h2h, h2hRows, recordCards,
       currentMatchId, backLink, deleteMatch, deleteAll, formatDate, formatNumber, average,
-      tab, metric, profileName, onProfilePick, profileListNewest, tiles, chartPoints, badges, earnedCount, iconPaths: ICON_PATHS,
+      tab, metric, profileName, onProfilePick, isOneVsOne, matchSides, profileListNewest, tiles, chartPoints, badges, earnedCount, iconPaths: ICON_PATHS,
     };
   },
 };
@@ -652,6 +681,59 @@ select {
 }
 
 .row .win {
+  color: var(--accent);
+}
+
+/* Multi-player match rows */
+.multi-body {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.multi-body li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 32px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--soft);
+}
+
+.multi-body li.won {
+  color: var(--text);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.ms-name {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 17px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-avg {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ms-legs {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 22px;
+  text-align: right;
+}
+
+.multi-body li.won .ms-legs {
   color: var(--accent);
 }
 

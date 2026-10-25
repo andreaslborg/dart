@@ -42,6 +42,11 @@ export const formatDate = (ts) => {
   return d.toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+// All players in a match: p1, p2 and (for local games with friends) p3, p4.
+export const allPlayers = (m) => ['p1', 'p2', 'p3', 'p4'].map(k => m.players[k]).filter(Boolean);
+// A plain one-against-one match (the only kind head-to-head looks at).
+export const isOneVsOne = (m) => !m.teams && allPlayers(m).length === 2;
+
 // Turn the raw history object into a sorted list (newest first).
 export function matchList(raw) {
   if (!raw) return [];
@@ -55,7 +60,7 @@ export function matchList(raw) {
 export function playerNames(matches) {
   const seen = new Map();
   for (const m of matches) {
-    for (const p of [m.players.p1, m.players.p2]) {
+    for (const p of allPlayers(m)) {
       const key = normalizeName(p.name);
       if (key && !seen.has(key)) seen.set(key, p.name.trim());
     }
@@ -95,6 +100,7 @@ export function headToHead(matches, nameA, nameB) {
   const res = { a: emptyTotals(), b: emptyTotals(), draws: 0, matches: [] };
   if (!a || !b || a === b) return res;
   for (const m of matches) {
+    if (!isOneVsOne(m)) continue;
     const p1 = m.players.p1;
     const p2 = m.players.p2;
     const n1 = normalizeName(p1.name);
@@ -123,7 +129,7 @@ export function records(matches) {
   };
   for (const m of matches) {
     // Bots from "Spil mod AI" don't count towards the records.
-    const humans = m.mode === 'ai' ? [m.players.p1] : [m.players.p1, m.players.p2];
+    const humans = m.mode === 'ai' ? [m.players.p1] : allPlayers(m);
     for (const p of humans) {
       const avg = average(p.scored || 0, p.visits || 0);
       consider('highestCheckout', p.highestCheckout, p.name, m.startedAt, (x, y) => x > y);
@@ -146,10 +152,20 @@ export function playerMatches(matches, name) {
   if (!key) return [];
   const out = [];
   for (const m of matches) {
-    const { p1, p2 } = m.players;
-    let me = null;
-    let opp = null;
-    if (normalizeName(p1.name) === key) { me = p1; opp = p2; } else if (normalizeName(p2.name) === key) { me = p2; opp = p1; } else continue;
+    const players = allPlayers(m);
+    const myIndex = players.findIndex(p => normalizeName(p.name) === key);
+    if (myIndex === -1) continue;
+    const me = players[myIndex];
+    // Opponents: the other team, or everyone else. The strongest one decides the result.
+    let others;
+    if (m.teams) {
+      const myTeam = m.teams.find(t => t.includes(myIndex)) || [];
+      others = players.filter((p, i) => !myTeam.includes(i));
+    } else {
+      others = players.filter((p, i) => i !== myIndex);
+    }
+    if (!others.length) continue;
+    const opp = others.reduce((best, p) => ((p.legs || 0) > (best.legs || 0) ? p : best), others[0]);
     const myLegs = me.legs || 0;
     const oppLegs = opp.legs || 0;
     out.push({
@@ -160,7 +176,9 @@ export function playerMatches(matches, name) {
       startScore: m.startScore || 501,
       me,
       opp,
-      oppName: (opp.name || '').trim(),
+      oppName: others.map(p => (p.name || '').trim()).join(m.teams ? ' & ' : ', '),
+      playerCount: players.length,
+      teams: Boolean(m.teams),
       myLegs,
       oppLegs,
       result: myLegs > oppLegs ? 'win' : (myLegs < oppLegs ? 'loss' : 'draw'),

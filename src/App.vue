@@ -54,6 +54,10 @@ export default {
   --accent: #5B95FF;
   --accent-hover: #7AAAFF;
   --chart: #4A85F5;
+  --p1: #4A85F5;
+  --p2: #D9762E;
+  --p3: #1FA39B;
+  --p4: #C25BC4;
   --on-accent: #0E0F12;
   --gold: #FFB547;
   --on-gold: #0E0F12;
@@ -83,6 +87,10 @@ export default {
   --accent: #2F6FE4;
   --accent-hover: #255CC4;
   --chart: #2F6FE4;
+  --p1: #2F6FE4;
+  --p2: #B8621F;
+  --p3: #0A8F84;
+  --p4: #A33FA8;
   --on-accent: #FFFFFF;
   --gold: #F2A93B;
   --on-gold: #14161B;

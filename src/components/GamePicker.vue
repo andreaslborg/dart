@@ -19,7 +19,7 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /><circle cx="12" cy="12" r="9" /></svg>
         <span class="gp-text">
           <span class="gp-name">Cricket</span>
-          <span class="gp-desc">Cut-throat · luk 20–15 og bull, giv point væk</span>
+          <span class="gp-desc">Cut-throat · 20–15 og bull</span>
         </span>
       </button>
     </div>

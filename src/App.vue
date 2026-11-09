@@ -208,6 +208,17 @@ html.game-locked .q-row {
   html.game-locked .ai .focus-score { font-size: clamp(56px, 11vh, 96px); }
   html.game-locked .ai .focus-recent { display: none; }
   html.game-locked .ai .bot-darts { padding-top: 4px; padding-bottom: 4px; min-height: 0; }
+  html.game-locked .cricket .lock-col { gap: 7px; }
+  html.game-locked .cricket .turn-card { padding-top: 6px; padding-bottom: 6px; }
+  html.game-locked .cricket .turn-name { font-size: 22px; }
+  html.game-locked .cricket .visit-dart { height: 34px; }
+  html.game-locked .cricket .last-visit { margin: 0; }
+  html.game-locked .cricket .b-player { padding-top: 3px; padding-bottom: 3px; }
+  html.game-locked .cricket .b-points { font-size: 24px; }
+  html.game-locked .cricket .b-cell { height: 26px; }
+  html.game-locked .cricket .b-num { font-size: 19px; }
+  html.game-locked .cricket .mult button { height: 36px; }
+  html.game-locked .cricket .actions button { height: 40px; }
 }
 
 .boot {

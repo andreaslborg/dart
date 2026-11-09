@@ -239,6 +239,7 @@ export default {
       if (!(await showConfirm('Alle gemte kampe slettes. Det kan ikke fortrydes.', { title: 'Slet historik?', confirmText: 'Slet alt', danger: true }))) return;
       await update(scoresRef, { currentMatchId: null, matchStartedAt: null });
       await remove(firebaseRef(database, 'history/matches'));
+      await remove(firebaseRef(database, 'history/cricket'));
       showAlert('Historikken er slettet.', { title: 'Klar' });
     };
 

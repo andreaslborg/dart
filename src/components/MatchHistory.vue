@@ -18,19 +18,58 @@
 
       <p v-if="loading" class="empty">Henter kampe…</p>
 
-      <div v-else-if="matches.length === 0" class="empty-card">
+      <div v-else-if="matches.length === 0 && cricketMatches.length === 0" class="empty-card">
         <h2>Ingen kampe endnu</h2>
         <p>En kamp gemmes automatisk, så snart det første leg er vundet. Tryk "Ny kamp" for at afslutte en kamp og starte en ny.</p>
       </div>
 
       <template v-else>
         <div class="tabs" role="tablist" aria-label="Visning">
-          <button type="button" role="tab" :aria-selected="tab === 'overview' ? 'true' : 'false'" :class="{ selected: tab === 'overview' }" @click="tab = 'overview'">Overblik</button>
-          <button type="button" role="tab" :aria-selected="tab === 'player' ? 'true' : 'false'" :class="{ selected: tab === 'player' }" @click="tab = 'player'">Spiller</button>
+          <button v-if="matches.length" type="button" role="tab" :aria-selected="tab === 'overview' ? 'true' : 'false'" :class="{ selected: tab === 'overview' }" @click="tab = 'overview'">Overblik</button>
+          <button v-if="matches.length" type="button" role="tab" :aria-selected="tab === 'player' ? 'true' : 'false'" :class="{ selected: tab === 'player' }" @click="tab = 'player'">Spiller</button>
+          <button v-if="cricketMatches.length" type="button" role="tab" :aria-selected="tab === 'cricket' ? 'true' : 'false'" :class="{ selected: tab === 'cricket' }" @click="tab = 'cricket'">Cricket</button>
         </div>
 
+        <!-- ================= CRICKET ================= -->
+        <template v-if="tab === 'cricket'">
+          <section class="block">
+            <h2 class="section-title">CRICKET · STILLING</h2>
+            <div class="c-table">
+              <div class="c-row c-head">
+                <span>Spiller</span><span>Kampe</span><span>Sejre</span><span>MPR</span>
+              </div>
+              <div v-for="r in cricketTable" :key="r.name" class="c-row">
+                <span class="c-name">{{ r.name }}</span><span>{{ r.matches }}</span><span>{{ r.wins }}</span><span>{{ r.mpr }}</span>
+              </div>
+            </div>
+          </section>
+          <section class="block">
+            <h2 class="section-title">CRICKET · KAMPE</h2>
+            <ul class="matches">
+              <li v-for="m in cricketMatches" :key="m.id" class="match">
+                <div class="match-head">
+                  <span class="match-date">{{ formatDate(m.startedAt) }} · {{ cricketModeLabel(m) }}</span>
+                  <span class="match-tools">
+                    <button type="button" class="delete" :aria-label="'Slet cricket-kamp ' + formatDate(m.startedAt)" @click="deleteCricket(m)">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /></svg>
+                      Slet
+                    </button>
+                  </span>
+                </div>
+                <ul class="multi-body">
+                  <li v-for="p in m.list" :key="p.key" :class="{ won: p.won }">
+                    <span class="ms-name">{{ p.name }}</span>
+                    <span class="ms-avg">MPR {{ p.mpr }}</span>
+                    <span class="ms-legs">{{ p.legs }}</span>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </section>
+        </template>
+
         <!-- ================= PLAYER ================= -->
-        <template v-if="tab === 'player'">
+        <template v-else-if="tab === 'player'">
           <section class="block">
             <label class="picker-field">
               <span class="sr-only">Vælg spiller</span>
@@ -265,6 +304,53 @@ export default {
 
     const backLink = computed(() => ({ path: '/', query: route.query }));
     const matches = computed(() => matchList(raw.value));
+
+    // ---- cricket (stored separately under history/cricket)
+    const rawCricket = ref(null);
+    const fmtMpr = (marks, visits) => (visits ? (marks / visits).toFixed(2) : '–');
+    const cricketMatches = computed(() => Object.entries(rawCricket.value || {})
+      .map(([id, m]) => {
+        const ps = ['p1', 'p2', 'p3', 'p4'].map(k => (m.players || {})[k]).filter(Boolean);
+        const top = Math.max(0, ...ps.map(p => p.legs || 0));
+        const leaders = ps.filter(p => (p.legs || 0) === top).length;
+        const list = ps.map((p, i) => ({
+          key: `p${i}`, name: p.name, legs: p.legs || 0, marks: p.marks || 0, visits: p.visits || 0,
+          mpr: fmtMpr(p.marks || 0, p.visits || 0), won: top > 0 && (p.legs || 0) === top && leaders === 1,
+        })).sort((a, b) => b.legs - a.legs);
+        return { ...m, id, list };
+      })
+      .filter(m => m.list.length)
+      .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0)));
+    const cricketTable = computed(() => {
+      const by = new Map();
+      cricketMatches.value.forEach((m) => {
+        m.list.forEach((p) => {
+          const k = normalizeName(p.name);
+          const r = by.get(k) || { name: p.name, matches: 0, wins: 0, marks: 0, visits: 0 };
+          r.matches += 1;
+          if (p.won) r.wins += 1;
+          r.marks += p.marks;
+          r.visits += p.visits;
+          by.set(k, r);
+        });
+      });
+      return [...by.values()]
+        .map(r => ({ ...r, mpr: fmtMpr(r.marks, r.visits) }))
+        .sort((a, b) => (b.wins - a.wins) || (b.matches - a.matches));
+    });
+    const cricketModeLabel = (m) => {
+      const mode = { local: 'Lokalt', ai: 'Mod AI', online: 'Online' }[m.mode] || 'Cricket';
+      return `${mode}${m.order === 'strict' ? ' · 20→15' : ''}`;
+    };
+    const deleteCricket = async (m) => {
+      const label = m.list.map(p => `${p.name} ${p.legs}`).join(', ');
+      if (await showConfirm(`${label}, ${formatDate(m.startedAt)}.`, { title: 'Slet kamp?', confirmText: 'Slet', danger: true })) {
+        remove(firebaseRef(database, `history/cricket/${m.id}`));
+      }
+    };
+    watch([matches, cricketMatches], () => {
+      if (!matches.value.length && cricketMatches.value.length) tab.value = 'cricket';
+    });
     const names = computed(() => playerNames(matches.value));
 
     // Default the head-to-head to the two players on the scoreboard, else the
@@ -406,6 +492,9 @@ export default {
         raw.value = snap.val();
         loading.value = false;
       }, () => { loading.value = false; }));
+      unsubscribers.push(onValue(firebaseRef(database, 'history/cricket'), (snap) => {
+        rawCricket.value = snap.val();
+      }, () => {}));
       unsubscribers.push(onValue(firebaseRef(database, 'scores'), (snap) => {
         const d = snap.val() || {};
         currentMatchId.value = d.currentMatchId || null;
@@ -417,6 +506,7 @@ export default {
     return {
       loading, matches, names, playerA, playerB, h2h, h2hRows, recordCards,
       currentMatchId, backLink, deleteMatch, deleteAll, formatDate, formatNumber, average,
+      cricketMatches, cricketTable, cricketModeLabel, deleteCricket,
       tab, metric, profileName, onProfilePick, isOneVsOne, matchSides, profileListNewest, tiles, chartPoints, badges, earnedCount, iconPaths: ICON_PATHS,
     };
   },
@@ -1179,5 +1269,46 @@ select {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ---------- cricket */
+.c-table {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 4px 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.c-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line2);
+  font-size: 15px;
+}
+
+.c-row:last-child {
+  border-bottom: 0;
+}
+
+.c-row span:not(:first-child) {
+  text-align: right;
+}
+
+.c-head {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.c-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

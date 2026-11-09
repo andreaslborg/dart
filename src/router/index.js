@@ -4,6 +4,7 @@ import MatchHistory from '../components/MatchHistory.vue';
 import VsAI from '../components/VsAI.vue';
 import SettingsPage from '../components/SettingsPage.vue';
 import LocalGame from '../components/LocalGame.vue';
+import CricketGame from '../components/CricketGame.vue';
 
 const routes = [
   {
@@ -25,6 +26,11 @@ const routes = [
     path: '/lokalt',
     name: 'Lokalt',
     component: LocalGame,
+  },
+  {
+    path: '/cricket',
+    name: 'Cricket',
+    component: CricketGame,
   },
   {
     path: '/indstillinger',

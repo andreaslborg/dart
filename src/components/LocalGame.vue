@@ -23,7 +23,7 @@
           </div>
         </div>
 
-        <div v-if="setup.count === 4 && setup.game !== 'cricket'" class="row-toggle">
+        <div v-if="setup.count === 4 && setup.game === 'x01'" class="row-toggle">
           <div class="row-text">
             <span class="row-label">Spil hold, 2 mod 2</span>
             <span class="help">Spiller 1 og 2 mod spiller 3 og 4. Holdkammerater skiftes til at kaste og deler score.</span>
@@ -316,7 +316,7 @@ export default {
       }
       arr.forEach((n, i) => { setup.names[i] = n; });
     };
-    const teamsOn = computed(() => setup.teams && setup.count === 4 && setup.game !== 'cricket');
+    const teamsOn = computed(() => setup.teams && setup.count === 4 && setup.game === 'x01');
     const colorFor = (i) => (teamsOn.value ? SIDE_COLORS[i < 2 ? 0 : 1] : SIDE_COLORS[i]);
 
     // A Cricket game started from here that is still running on this phone.
@@ -332,9 +332,9 @@ export default {
         return;
       }
       setupError.value = '';
-      if (setup.game === 'cricket') {
+      if (setup.game !== 'x01') {
         startCricket({
-          mode: 'local', players: names.map(name => ({ name })), order: setup.order, legsToWin: setup.legsToWin,
+          mode: 'local', players: names.map(name => ({ name })), order: setup.order, variant: setup.game === 'cutthroat' ? 'cut' : 'standard', legsToWin: setup.legsToWin,
           start: setup.startMode === 'bull' ? 'bull' : 'p0',
         }, router, route.query);
         return;

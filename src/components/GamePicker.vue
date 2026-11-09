@@ -12,19 +12,19 @@
     <span class="gp-label">ANDRE SPIL</span>
     <div class="gp-modes">
       <button
-        type="button" class="gp-mode" :class="{ selected: game === 'cricket' }"
-        :aria-pressed="game === 'cricket' ? 'true' : 'false'"
-        @click="$emit('update:game', 'cricket')"
+        v-for="m in modes" :key="m.key" type="button" class="gp-mode" :class="{ selected: game === m.key }"
+        :aria-pressed="game === m.key ? 'true' : 'false'"
+        @click="$emit('update:game', m.key)"
       >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /><circle cx="12" cy="12" r="9" /></svg>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /><circle v-if="m.key === 'cricket'" cx="12" cy="12" r="9" /><path v-else d="M3 12h3M18 12h3" /></svg>
         <span class="gp-text">
-          <span class="gp-name">Cricket</span>
-          <span class="gp-desc">Cut-throat · 20–15 og bull</span>
+          <span class="gp-name">{{ m.name }}</span>
+          <span class="gp-desc">{{ m.desc }}</span>
         </span>
       </button>
     </div>
 
-    <div v-if="game === 'cricket'" class="gp-sub">
+    <div v-if="game !== 'x01'" class="gp-sub">
       <span class="gp-label">RÆKKEFØLGE</span>
       <div class="gp-scores two" role="group" aria-label="Rækkefølge">
         <button type="button" :class="{ selected: order !== 'strict' }" @click="$emit('update:order', 'free')">Fri</button>
@@ -35,7 +35,7 @@
 </template>
 
 <script>
-// Pick the game: an X01 start score, or another game type (Cricket, ...).
+// Pick the game: an X01 start score, or another game type ('cricket' = normal, 'cutthroat').
 export default {
   name: 'GamePicker',
   props: {
@@ -50,7 +50,11 @@ export default {
       emit('update:score', s);
       emit('update:game', 'x01');
     };
-    return { pickScore };
+    const modes = [
+      { key: 'cricket', name: 'Cricket', desc: 'Luk 20–15 og bull, scor point selv' },
+      { key: 'cutthroat', name: 'Cut-throat Cricket', desc: 'Giv point til de andre, færrest vinder' },
+    ];
+    return { pickScore, modes };
   },
 };
 </script>

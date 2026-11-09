@@ -340,7 +340,8 @@ export default {
     });
     const cricketModeLabel = (m) => {
       const mode = { local: 'Lokalt', ai: 'Mod AI', online: 'Online' }[m.mode] || 'Cricket';
-      return `${mode}${m.order === 'strict' ? ' · 20→15' : ''}`;
+      const kind = m.variant === 'standard' ? 'Cricket' : 'Cut-throat';
+      return `${kind} · ${mode}${m.order === 'strict' ? ' · 20→15' : ''}`;
     };
     const deleteCricket = async (m) => {
       const label = m.list.map(p => `${p.name} ${p.legs}`).join(', ');

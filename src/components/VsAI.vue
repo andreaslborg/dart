@@ -26,7 +26,7 @@
           <div class="levels">
             <button v-for="lv in levelList" :key="lv.key" type="button" class="level" :class="{ selected: setup.level === lv.key }" @click="setup.level = lv.key">
               <span class="level-name">{{ lv.name }}</span>
-              <span class="level-avg">{{ setup.game === 'cricket' ? `ca. ${cricketMpr[lv.key]} MPR` : `Gns. ca. ${lv.target}` }}</span>
+              <span class="level-avg">{{ setup.game !== 'x01' ? `ca. ${cricketMpr[lv.key]} MPR` : `Gns. ca. ${lv.target}` }}</span>
             </button>
           </div>
         </div>
@@ -53,7 +53,7 @@
         </div>
 
         <button type="button" class="primary-btn" @click="startMatch">Start kamp</button>
-        <p v-if="setup.game !== 'cricket'" class="note">Double-out: du skal slutte på en double. Går du under 0 eller står på 1, er det bust.</p>
+        <p v-if="setup.game === 'x01'" class="note">Double-out: du skal slutte på en double. Går du under 0 eller står på 1, er det bust.</p>
       </section>
 
       <!-- ============ PLAY / DONE ============ -->
@@ -378,11 +378,12 @@ export default {
       const name = (setup.name || '').trim() || 'Mig';
       setup.name = name;
       if (!local.name) local.name = name;
-      if (setup.game === 'cricket') {
+      if (setup.game !== 'x01') {
         startCricket({
           mode: 'ai',
           players: [{ name }, { name: botNameFor(setup.level), bot: setup.level }],
           order: setup.order,
+          variant: setup.game === 'cutthroat' ? 'cut' : 'standard',
           legsToWin: setup.legsToWin,
           level: setup.level,
           start: { me: 'p0', bot: 'p1', bull: 'bull' }[setup.starter] || 'p0',

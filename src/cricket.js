@@ -1,4 +1,7 @@
-// Cut-throat Cricket.
+// Cricket: normal and cut-throat (state.variant = 'standard' | 'cut').
+//
+// Normal: once you have closed a number, further hits score its points for YOU
+// as long as an opponent hasn't closed it. Highest score wins.
 //
 // Numbers 20-15 and the bull. Three marks close a number (single = 1, double = 2,
 // triple = 3; outer bull = 1, bullseye = 2). Once you have closed a number, every
@@ -61,34 +64,45 @@ export function applyDart(state, p, t, m) {
   if (before < 3 && state.marks[p][i] >= 3) res.closed = true;
   if (extra > 0) {
     const value = t === 25 ? 25 : t;
-    state.marks.forEach((row, q) => {
-      if (q !== p && row[i] < 3) {
+    const open = state.marks.map((row, q) => q).filter(q => q !== p && state.marks[q][i] < 3);
+    if (isCut(state)) {
+      open.forEach((q) => {
         state.points[q] += extra * value;
         res.gave += extra * value;
         res.to.push(q);
-      }
-    });
+      });
+    } else if (open.length) {
+      state.points[p] += extra * value;
+      res.gave += extra * value;
+      res.to.push(p);
+    }
     if (res.to.length) res.marked += extra;
   }
   return res;
 }
 
+// Old saved games have no variant: they were cut-throat.
+export const isCut = (state) => state.variant !== 'standard';
+
 export const allClosed = (marks, p) => marks[p].every(v => v >= 3);
 
-// Has player p won the leg? All closed and lowest (or equal lowest) points.
+// Has player p won the leg? All closed and the best score (ties count):
+// cut-throat = lowest, normal = highest.
 export function legWinner(state) {
+  const best = isCut(state) ? Math.min(...state.points) : Math.max(...state.points);
   for (let p = 0; p < state.marks.length; p++) {
-    if (allClosed(state.marks, p) && state.points[p] <= Math.min(...state.points)) return p;
+    if (allClosed(state.marks, p) && (isCut(state) ? state.points[p] <= best : state.points[p] >= best)) return p;
   }
   return -1;
 }
 
-// Standing: 1 = best. Lowest points first, then most marks.
+// Standing: 1 = best. Best points first, then most marks.
 export function standing(state) {
   const n = state.points.length;
   const marks = (p) => state.marks[p].reduce((a, b) => a + Math.min(3, b), 0);
+  const dir = isCut(state) ? 1 : -1;
   const order = Array.from({ length: n }, (_, i) => i)
-    .sort((a, b) => (state.points[a] - state.points[b]) || (marks(b) - marks(a)));
+    .sort((a, b) => (dir * (state.points[a] - state.points[b])) || (marks(b) - marks(a)));
   const rank = new Array(n);
   order.forEach((p, pos) => {
     const prev = order[pos - 1];
@@ -119,13 +133,16 @@ export function cricketLevel(level) {
 export function botTarget(state, p) {
   const { marks, points } = state;
   const others = marks.map((_, q) => q).filter(q => q !== p);
-  const minOther = Math.min(...others.map(q => points[q]));
+  // Behind: cut-throat = more points than the leader; normal = fewer than the leader.
+  const behind = isCut(state)
+    ? points[p] > Math.min(...others.map(q => points[q]))
+    : points[p] < Math.max(...others.map(q => points[q]));
   const aim = (t) => (t === 25 ? { t, ring: 'SB' } : { t, ring: 'T' });
 
   if (state.order === 'strict') {
     const next = nextStrict(marks, p);
     // Behind on points with a scoring number: hurt the leader first.
-    if (points[p] > minOther || next === null) {
+    if (behind || next === null) {
       const scoring = TARGETS.filter(t => isClosed(marks, p, t) && !deadFor(marks, t));
       const best = pickScoring(state, p, scoring);
       if (best) return aim(best);
@@ -136,8 +153,8 @@ export function botTarget(state, p) {
   const open = TARGETS.filter(t => !isClosed(marks, p, t) && !deadFor(marks, t));
   const scoring = TARGETS.filter(t => isClosed(marks, p, t) && !deadFor(marks, t));
 
-  // 1. Behind (more points than the leader) and able to hand out points: do it.
-  if (points[p] > minOther && scoring.length) {
+  // 1. Behind on points and able to score: do it.
+  if (behind && scoring.length) {
     const best = pickScoring(state, p, scoring);
     if (best) return aim(best);
   }
@@ -153,10 +170,16 @@ export function botTarget(state, p) {
   return aim(best || 20);
 }
 
-// Best number to score on: most points to the current leader (lowest score).
+// Best number to score on. Cut-throat: most points to the current leader
+// (lowest score). Normal: the biggest number an opponent still has open.
 function pickScoring(state, p, scoring) {
   const { marks, points } = state;
   const others = marks.map((_, q) => q).filter(q => q !== p);
+  if (!isCut(state)) {
+    const usable = scoring.filter(t => others.some(q => !isClosed(marks, q, t)));
+    if (!usable.length) return null;
+    return usable.reduce((a, b) => ((b === 25 ? 20 : b) > (a === 25 ? 20 : a) ? b : a));
+  }
   const leaderPts = Math.min(...others.map(q => points[q]));
   const leaders = others.filter(q => points[q] === leaderPts);
   let best = null;

@@ -42,7 +42,7 @@
           <span class="picker-label">HVEM STARTER?</span>
         </template>
         <h2 v-else id="starter-title" class="picker-title">Hvem starter?</h2>
-        <p v-if="!(starterPrompt.type === 'match' && starterPrompt.game === 'cricket')" class="picker-sub">Starter leg 1, 3, 5 … Den anden starter leg 2, 4, 6 …</p>
+        <p v-if="!(starterPrompt.type === 'match' && starterPrompt.game !== 'x01')" class="picker-sub">Starter leg 1, 3, 5 … Den anden starter leg 2, 4, 6 …</p>
         <div class="picker-options">
           <button type="button" class="picker-option" @click="chooseStarter(1)">
             <span class="picker-num">SPILLER 1</span>
@@ -857,6 +857,7 @@ export default {
         mode: 'online',
         players: [{ name: player1Name.value }, { name: player2Name.value }],
         order: pending.order || 'free',
+        variant: pending.game === 'cutthroat' ? 'cut' : 'standard',
         legsToWin: shared.legsToWin || 2,
         start,
       }, router, route.query);
@@ -871,7 +872,7 @@ export default {
       const pending = starterPrompt.value;
       starterPrompt.value = null;
       if (!pending) return;
-      if (pending.type === 'match' && pending.game === 'cricket') {
+      if (pending.type === 'match' && pending.game !== 'x01') {
         startOnlineCricket(pending, 'bull');
         return;
       }
@@ -900,7 +901,7 @@ export default {
       const pending = starterPrompt.value;
       starterPrompt.value = null;
       if (!pending) return;
-      if (pending.type === 'match' && pending.game === 'cricket') {
+      if (pending.type === 'match' && pending.game !== 'x01') {
         startOnlineCricket(pending, n === 1 ? 'p0' : 'p1');
         return;
       }

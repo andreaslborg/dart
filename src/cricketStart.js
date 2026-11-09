@@ -12,7 +12,7 @@ export const STORE_KEY = 'borgdart_cricket_v1';
 export const ONLINE_PATH = 'scores/cricket';
 
 export const blankGame = () => ({
-  mode: 'local', phase: 'setup', order: 'free', legsToWin: 2, legNo: 1, level: 'pub', start: 'bull',
+  mode: 'local', phase: 'setup', variant: 'cut', order: 'free', legsToWin: 2, legNo: 1, level: 'pub', start: 'bull',
   players: [], legs: [], marks: [], points: [], stats: [], turn: 0, firstStarter: 0,
   visit: [], prev: null, legOver: false, lastLegWinner: 0, undo: [], matchId: null, startedAt: null,
   bull: { results: [], active: [], round: 1 },
@@ -45,6 +45,7 @@ export function buildCricketGame(cfg) {
   const g = {
     ...blankGame(),
     mode: cfg.mode,
+    variant: cfg.variant === 'cut' ? 'cut' : 'standard',
     order: cfg.order || 'free',
     legsToWin: typeof cfg.legsToWin === 'number' ? cfg.legsToWin : 2, // 0 = no limit
     level: cfg.level || 'pub',

@@ -5,7 +5,7 @@
         <router-link :to="backLink" class="icon-link" aria-label="Tilbage" title="Tilbage" @click="leave">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
         </router-link>
-        <h1 class="page-title">CRICKET</h1>
+        <h1 class="page-title">{{ isCutGame ? 'CUT-THROAT' : 'CRICKET' }}</h1>
         <div v-if="inGame" class="pill">{{ modeLabel }} · LEG {{ g.legNo }}{{ g.legsToWin ? ` · TIL ${g.legsToWin}` : '' }}</div>
         <LockButton :available="inGame" />
       </header>
@@ -166,7 +166,7 @@ import { local, buzz } from '@/settings';
 import LockButton from '@/components/LockButton.vue';
 import {
   TARGETS, targetName, dartLabel, freshStats, freshLeg, applyDart, legWinner, targetAllowed, deadFor, nextStrict,
-  standing, fmtMpr, botTarget, dartToCricket, cricketLevel,
+  standing, fmtMpr, botTarget, dartToCricket, cricketLevel, isCut,
 } from '@/cricket';
 import {
   blankGame, normalize, buildCricketGame, loadLocal, saveLocal, originOf, autoOpen, ONLINE_PATH,
@@ -276,6 +276,7 @@ export default {
 
     // ---------- derived
     const targets = TARGETS;
+    const isCutGame = computed(() => isCut(g.value));
     const inGame = computed(() => ['bull', 'play', 'done'].includes(g.value.phase));
     const modeLabel = computed(() => ({ local: 'LOKALT', ai: 'AI', online: 'ONLINE' }[g.value.mode] || ''));
     const ranks = computed(() => (g.value.players.length ? standing(g.value) : []));
@@ -307,7 +308,7 @@ export default {
       const p = g.value.prev;
       if (!p || !g.value.players[p.p]) return '';
       const darts = (p.darts || []).map(dartLabel).join(' · ');
-      const gave = p.gave ? ` · gav ${p.gave} point` : '';
+      const gave = p.gave ? (isCutGame.value ? ` · gav ${p.gave} point` : ` · scorede ${p.gave}`) : '';
       return `${g.value.players[p.p].name}: ${darts}${gave}`;
     });
 
@@ -318,7 +319,7 @@ export default {
         { label: 'MPR', values: per(st => fmtMpr(st)) },
         { label: 'Markeringer', values: per(st => st.marks) },
         { label: 'Triples', values: per(st => st.triples) },
-        { label: 'Givet point', values: per(st => st.given) },
+        { label: isCutGame.value ? 'Givet point' : 'Scorede point', values: per(st => st.given) },
         { label: 'Pile', values: per(st => st.darts) },
       ];
     });
@@ -352,7 +353,7 @@ export default {
         };
       });
       const record = {
-        startedAt: s.startedAt, updatedAt: Date.now(), mode: s.mode, order: s.order, legsToWin: s.legsToWin, players,
+        startedAt: s.startedAt, updatedAt: Date.now(), mode: s.mode, variant: s.variant, order: s.order, legsToWin: s.legsToWin, players,
       };
       if (s.mode === 'ai') record.level = s.level;
       if (s.phase === 'done') record.winner = s.players[s.lastLegWinner].name;
@@ -511,7 +512,7 @@ export default {
       const s = g.value;
       stopTimers();
       const fresh = buildCricketGame({
-        mode: s.mode, players: s.players, order: s.order, legsToWin: s.legsToWin, level: s.level, start: s.start,
+        mode: s.mode, variant: s.variant, players: s.players, order: s.order, legsToWin: s.legsToWin, level: s.level, start: s.start,
       });
       Object.assign(s, fresh);
       commit();
@@ -538,7 +539,7 @@ export default {
     });
 
     return {
-      g, backLink, colors, mySeat, mult, flash, bullLabel, bullRes, targets, inGame, modeLabel, ranks, canInput, turnTag, waitText,
+      g, isCutGame, backLink, colors, mySeat, mult, flash, bullLabel, bullRes, targets, inGame, modeLabel, ranks, canInput, turnTag, waitText,
       lastVisitText, statRows, canUndo,
       beginPlay, canBull, bullVisible, setBull, bullRethrow, leave,
       allowed, isDead, isNextForTurn, markText, targetName, dartLabel, enter, endVisitEarly, undoDart, nextLeg, rematch, quitMatch,

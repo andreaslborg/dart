@@ -12,6 +12,10 @@
 
       <!-- ===================== SETUP ===================== -->
       <section v-if="g.phase === 'setup'" class="setup">
+        <button v-if="resumeCricket" type="button" class="resume-btn" @click="openCricket">
+          <span>Cricket-kamp i gang</span>
+          <span class="resume-sub">{{ resumeCricket }} · Fortsæt</span>
+        </button>
         <div class="field">
           <span class="field-label">Antal spillere</span>
           <div class="segmented">
@@ -19,7 +23,7 @@
           </div>
         </div>
 
-        <div v-if="setup.count === 4" class="row-toggle">
+        <div v-if="setup.count === 4 && setup.game !== 'cricket'" class="row-toggle">
           <div class="row-text">
             <span class="row-label">Spil hold, 2 mod 2</span>
             <span class="help">Spiller 1 og 2 mod spiller 3 og 4. Holdkammerater skiftes til at kaste og deler score.</span>
@@ -29,7 +33,7 @@
 
         <div class="field">
           <div class="field-head">
-            <span class="field-label">{{ setup.teams && setup.count === 4 ? 'Hold' : 'Spillere' }}</span>
+            <span class="field-label">{{ teamsOn ? 'Hold' : 'Spillere' }}</span>
             <button type="button" class="link-btn" @click="shuffle">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /></svg>
               Bland
@@ -37,7 +41,7 @@
           </div>
           <div class="names">
             <template v-for="(p, i) in setup.names.slice(0, setup.count)" :key="'n' + i">
-              <span v-if="setup.teams && setup.count === 4 && (i === 0 || i === 2)" class="team-label" :style="{ '--c': colorFor(i) }">{{ i === 0 ? 'HOLD A' : 'HOLD B' }}</span>
+              <span v-if="teamsOn && (i === 0 || i === 2)" class="team-label" :style="{ '--c': colorFor(i) }">{{ i === 0 ? 'HOLD A' : 'HOLD B' }}</span>
               <label class="name-input" :style="{ '--c': colorFor(i) }">
                 <span class="dot" aria-hidden="true"></span>
                 <span class="sr-only">Navn på spiller {{ i + 1 }}</span>
@@ -54,9 +58,7 @@
 
         <div class="field">
           <span class="field-label">Spil</span>
-          <div class="segmented">
-            <button v-for="sc in [201, 301, 501, 701, 1000]" :key="sc" type="button" :class="{ selected: setup.startScore === sc }" @click="setup.startScore = sc">{{ sc }}</button>
-          </div>
+          <GamePicker v-model:game="setup.game" v-model:score="setup.startScore" v-model:order="setup.order" :scores="[201, 301, 501, 701, 1000]" />
         </div>
 
         <div class="field">
@@ -225,7 +227,7 @@
 
 <script>
 import { reactive, ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { getDatabase, ref as firebaseRef, set, push, get } from 'firebase/database';
 import confetti from 'canvas-confetti';
 import getDartsCheckout from '@/getDartsCheckout';
@@ -237,6 +239,8 @@ import { local, shared, buzz } from '@/settings';
 import { useVoiceInput } from '@/useVoiceInput';
 import VoiceInput from '@/components/VoiceInput.vue';
 import LockButton from '@/components/LockButton.vue';
+import GamePicker from '@/components/GamePicker.vue';
+import { startCricket, runningLocal } from '@/cricketStart';
 import {
   makeSides, sideStarterForLeg, throwerOf, standings, resolveBullMulti, turnLabel, SIDE_COLORS,
 } from '@/localGame';
@@ -251,9 +255,10 @@ const save = (v) => {
 const freshPlayerStats = () => ({ visits: [], doubleDarts: [], legDarts: [], checkouts: [], highestCheckout: 0 });
 
 export default {
-  components: { VoiceInput, LockButton },
+  components: { VoiceInput, LockButton, GamePicker },
   setup() {
     const route = useRoute();
+    const router = useRouter();
     const database = getDatabase();
     const backLink = computed(() => ({ path: '/', query: route.query }));
     const saved = load(null);
@@ -265,6 +270,8 @@ export default {
       startScore: 501,
       legsToWin: 2,
       startMode: 'bull',
+      game: 'x01',
+      order: 'free',
       ...(saved && saved.setup ? saved.setup : {}),
     });
     if (!setup.names.some(Boolean) && local.name) setup.names[0] = local.name;
@@ -309,7 +316,13 @@ export default {
       }
       arr.forEach((n, i) => { setup.names[i] = n; });
     };
-    const colorFor = (i) => (setup.teams && setup.count === 4 ? SIDE_COLORS[i < 2 ? 0 : 1] : SIDE_COLORS[i]);
+    const teamsOn = computed(() => setup.teams && setup.count === 4 && setup.game !== 'cricket');
+    const colorFor = (i) => (teamsOn.value ? SIDE_COLORS[i < 2 ? 0 : 1] : SIDE_COLORS[i]);
+
+    // A Cricket game started from here that is still running on this phone.
+    const runningCricket = runningLocal('local');
+    const resumeCricket = runningCricket ? runningCricket.players.map(p => p.name).join(', ') : '';
+    const openCricket = () => router.push({ path: '/cricket', query: { ...route.query, src: 'local' } });
 
     const startMatch = () => {
       const names = setup.names.slice(0, setup.count).map((n, i) => n.trim() || `Spiller ${i + 1}`);
@@ -319,6 +332,13 @@ export default {
         return;
       }
       setupError.value = '';
+      if (setup.game === 'cricket') {
+        startCricket({
+          mode: 'local', players: names.map(name => ({ name })), order: setup.order, legsToWin: setup.legsToWin,
+          start: setup.startMode === 'bull' ? 'bull' : 'p0',
+        }, router, route.query);
+        return;
+      }
       const players = names.map(name => ({ name }));
       const teams = setup.teams && players.length === 4;
       const sides = makeSides(players, teams);
@@ -587,7 +607,7 @@ export default {
     onUnmounted(() => clearTimeout(flashTimer));
 
     return {
-      g, setup, setupError, suggestions, backLink, currentScore, pendingDouble, flash, bullLabel, bullRes, current,
+      g, setup, setupError, teamsOn, resumeCricket, openCricket, suggestions, backLink, currentScore, pendingDouble, flash, bullLabel, bullRes, current,
       currentThrower, currentThrowerName, ranks, queue, canEnter, statRows, voice,
       setCount, shuffle, addName, colorFor, startMatch, bullThrowerName, setBull, bullRethrow, bullStart,
       hint, recent, playerAvg, sideOfPlayer, press, del, submit, answerDouble, undoVisit, nextLeg, rematch, toSetup, quitMatch,
@@ -1567,4 +1587,29 @@ button:disabled {
   border: 0;
 }
 
+
+.resume-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--text);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 20px;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+.resume-sub {
+  font-family: 'Barlow', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: none;
+  color: var(--muted);
+}
 </style>

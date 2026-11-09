@@ -2,129 +2,15 @@
   <div class="cricket game-screen">
     <div class="wrap lock-col">
       <header class="topbar">
-        <router-link :to="backLink" class="icon-link" aria-label="Tilbage til scoreboard" title="Tilbage">
+        <router-link :to="backLink" class="icon-link" aria-label="Tilbage" title="Tilbage" @click="leave">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
         </router-link>
         <h1 class="page-title">CRICKET</h1>
-        <div v-if="inGame" class="pill">{{ modeLabel }} · LEG {{ g.legNo }} · TIL {{ g.legsToWin }}</div>
+        <div v-if="inGame" class="pill">{{ modeLabel }} · LEG {{ g.legNo }}{{ g.legsToWin ? ` · TIL ${g.legsToWin}` : '' }}</div>
         <LockButton :available="inGame" />
       </header>
 
-      <!-- ===================== SETUP ===================== -->
-      <section v-if="g.phase === 'setup'" class="setup">
-        <div class="field">
-          <span class="field-label">Spil</span>
-          <div class="segmented">
-            <button type="button" :class="{ selected: setup.mode === 'local' }" @click="setMode('local')">Lokalt</button>
-            <button type="button" :class="{ selected: setup.mode === 'ai' }" @click="setMode('ai')">Mod AI</button>
-            <button type="button" :class="{ selected: setup.mode === 'online' }" @click="setMode('online')">Online 1v1</button>
-          </div>
-        </div>
-
-        <!-- Local: 2-4 players on this phone -->
-        <template v-if="setup.mode === 'local'">
-          <div class="field">
-            <span class="field-label">Antal spillere</span>
-            <div class="segmented">
-              <button v-for="n in [2, 3, 4]" :key="n" type="button" :class="{ selected: setup.count === n }" @click="setup.count = n">{{ n }}</button>
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-head">
-              <span class="field-label">Spillere</span>
-              <button type="button" class="link-btn" @click="shuffle">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /></svg>
-                Bland
-              </button>
-            </div>
-            <div class="names">
-              <label v-for="(p, i) in setup.names.slice(0, setup.count)" :key="'n' + i" class="name-input" :style="{ '--c': colors[i] }">
-                <span class="dot" aria-hidden="true"></span>
-                <span class="sr-only">Navn på spiller {{ i + 1 }}</span>
-                <input v-model="setup.names[i]" type="text" maxlength="16" :placeholder="`Spiller ${i + 1}`" autocomplete="off">
-              </label>
-            </div>
-            <div v-if="suggestions.length" class="chips">
-              <span class="chips-label">Tidligere:</span>
-              <button v-for="n in suggestions" :key="'s' + n" type="button" class="chip" @click="addName(n)">{{ n }}</button>
-            </div>
-          </div>
-        </template>
-
-        <!-- Against the bot -->
-        <template v-else-if="setup.mode === 'ai'">
-          <div class="field">
-            <span class="field-label">Dit navn</span>
-            <label class="name-input" :style="{ '--c': colors[0] }">
-              <span class="dot" aria-hidden="true"></span>
-              <input v-model="setup.myName" type="text" maxlength="16" placeholder="Dit navn" autocomplete="off" aria-label="Dit navn">
-            </label>
-          </div>
-          <div class="field">
-            <span class="field-label">Niveau</span>
-            <div class="levels">
-              <button v-for="lv in levelList" :key="lv.key" type="button" class="level" :class="{ selected: setup.level === lv.key }" @click="setup.level = lv.key">
-                <span class="level-name">{{ lv.name }}</span>
-                <span class="level-avg">{{ mprHint[lv.key] }} MPR</span>
-              </button>
-            </div>
-          </div>
-        </template>
-
-        <!-- Online: the two phones from the scoreboard -->
-        <template v-else>
-          <div class="online-card">
-            <div v-for="i in [0, 1]" :key="'o' + i" class="online-row" :style="{ '--c': colors[i] }">
-              <span class="dot" aria-hidden="true"></span>
-              <span class="online-name">{{ onlineNames[i] }}</span>
-              <span v-if="mySeat === i" class="me-tag">DIG</span>
-            </div>
-            <p class="help">Begge telefoner åbner Cricket. Navnene kommer fra scoreboardet.</p>
-          </div>
-          <div class="field">
-            <span class="field-label">Denne telefon er</span>
-            <div class="segmented">
-              <button v-for="i in [0, 1]" :key="'seat' + i" type="button" :class="{ selected: mySeat === i }" @click="local.seat = i + 1">{{ onlineNames[i] }}</button>
-            </div>
-          </div>
-        </template>
-
-        <div class="field">
-          <span class="field-label">Rækkefølge</span>
-          <div class="segmented">
-            <button type="button" :class="{ selected: setup.order === 'free' }" @click="setup.order = 'free'">Fri</button>
-            <button type="button" :class="{ selected: setup.order === 'strict' }" @click="setup.order = 'strict'">20 → 15 → Bull</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <span class="field-label">Først til</span>
-          <div class="segmented">
-            <button v-for="n in [1, 2, 3, 5]" :key="n" type="button" :class="{ selected: setup.legsToWin === n }" @click="setup.legsToWin = n">{{ n }} {{ n === 1 ? 'leg' : 'legs' }}</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <span class="field-label">Hvem starter?</span>
-          <div class="segmented">
-            <button v-for="opt in starterOptions" :key="opt.key" type="button" :class="{ selected: setup.start === opt.key }" @click="setup.start = opt.key">{{ opt.label }}</button>
-          </div>
-        </div>
-
-        <p v-if="setupError" class="error" role="alert">{{ setupError }}</p>
-        <button type="button" class="primary-btn" @click="startMatch">Start kamp</button>
-
-        <details class="rules">
-          <summary>Sådan spilles Cut-throat</summary>
-          <ul>
-            <li>Der spilles på 20, 19, 18, 17, 16, 15 og bull.</li>
-            <li>Ram et tal 3 gange for at lukke det. Double tæller 2, triple 3. Ydre bull tæller 1, bullseye 2.</li>
-            <li>Når du har lukket et tal, giver hver ekstra træffer point til de modstandere, der ikke har lukket det.</li>
-            <li>Når alle har lukket et tal, er det dødt.</li>
-            <li>Du vinder, når du har lukket alt og har færrest point (eller lige med færrest).</li>
-          </ul>
-        </details>
-      </section>
+      <p v-if="g.phase === 'setup'" class="wait-text">Henter kamp…</p>
 
       <!-- ===================== BULLS UP ===================== -->
       <div v-else-if="g.phase === 'bull'" class="bull">
@@ -269,13 +155,12 @@
 
 <script>
 import { reactive, ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { useRoute } from 'vue-router';
-import { getDatabase, ref as firebaseRef, set, push, get, onValue } from 'firebase/database';
+import { useRoute, useRouter } from 'vue-router';
+import { getDatabase, ref as firebaseRef, set, onValue } from 'firebase/database';
 import confetti from 'canvas-confetti';
 import { LEVELS, throwDart, throwBull } from '@/ai/dartBot';
 import { BULL_LABEL, dartToBull } from '@/bullsUp';
 import { resolveBullMulti, turnLabel, SIDE_COLORS } from '@/localGame';
-import { matchList, playerNames } from '@/matchHistory';
 import { showConfirm } from '@/dialog';
 import { local, buzz } from '@/settings';
 import LockButton from '@/components/LockButton.vue';
@@ -283,73 +168,41 @@ import {
   TARGETS, targetName, dartLabel, freshStats, freshLeg, applyDart, legWinner, targetAllowed, deadFor, nextStrict,
   standing, fmtMpr, botTarget, dartToCricket, cricketLevel,
 } from '@/cricket';
+import {
+  blankGame, normalize, buildCricketGame, loadLocal, saveLocal, originOf, autoOpen, ONLINE_PATH,
+} from '@/cricketStart';
 
-const STORE_KEY = 'borgdart_cricket_v1';
 const BOT_DELAY = 700;
 const UNDO_MAX = 40;
-const MPR_HINT = { begynder: '0,9', pub: '1,6', liga: '2,4', pro: '3,4' };
-
-const load = () => {
-  try { const v = localStorage.getItem(STORE_KEY); return v ? JSON.parse(v) : null; } catch (e) { return null; }
-};
-const save = (v) => {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(v)); } catch (e) { /* storage unavailable */ }
-};
 const plain = (o) => JSON.parse(JSON.stringify(o));
-
-const blankGame = () => ({
-  mode: 'local', phase: 'setup', order: 'free', legsToWin: 2, legNo: 1, level: 'pub',
-  players: [], legs: [], marks: [], points: [], stats: [], turn: 0, firstStarter: 0,
-  visit: [], prev: null, legOver: false, lastLegWinner: 0, undo: [], matchId: null, startedAt: null,
-  bull: { results: [], active: [], round: 1 },
-});
-
-// Firebase drops empty arrays and nulls inside arrays: rebuild the full shape.
-function normalize(raw) {
-  const g = { ...blankGame(), ...(raw || {}) };
-  const n = Array.isArray(g.players) ? g.players.length : Object.keys(g.players || {}).length;
-  const arr = (v, fill) => Array.from({ length: n }, (_, i) => {
-    const x = v ? v[i] : undefined;
-    return x === undefined || x === null ? (typeof fill === 'function' ? fill() : fill) : x;
-  });
-  g.players = arr(g.players, () => ({ name: '' }));
-  g.legs = arr(g.legs, 0);
-  g.points = arr(g.points, 0);
-  g.marks = arr(g.marks, () => TARGETS.map(() => 0)).map(row => TARGETS.map((t, i) => (row && row[i]) || 0));
-  g.stats = arr(g.stats, freshStats).map(s => ({ ...freshStats(), ...s }));
-  g.visit = Object.values(g.visit || {});
-  g.undo = Object.values(g.undo || {});
-  const b = g.bull || {};
-  g.bull = { round: b.round || 1, results: arr(b.results, null), active: arr(b.active, false) };
-  return g;
-}
 
 export default {
   name: 'CricketGame',
   components: { LockButton },
   setup() {
     const route = useRoute();
+    const router = useRouter();
     const database = getDatabase();
-    const onlineRef = firebaseRef(database, 'scores/cricket');
-    const backLink = computed(() => ({ path: '/', query: route.query }));
-    const saved = load();
-
-    const setup = reactive({
-      mode: 'local', count: 2, names: ['', '', '', ''], myName: local.name || '', level: 'pub',
-      order: 'free', legsToWin: 2, start: 'bull',
-      ...(saved && saved.setup ? saved.setup : {}),
-    });
-    if (!setup.names.some(Boolean) && local.name) setup.names[0] = local.name;
+    const onlineRef = firebaseRef(database, ONLINE_PATH);
 
     // Two games can exist: one on this phone (local / AI) and the shared online one.
+    const saved = loadLocal();
     const lg = reactive(normalize(saved && saved.game));
     const og = reactive(blankGame());
-    const src = ref(lg.phase !== 'setup' ? 'local' : (setup.mode === 'online' ? 'online' : 'local'));
+    const src = ref(route.query.src === 'online' || lg.phase === 'setup' ? 'online' : 'local');
+    if (route.query.src === 'local') src.value = 'local';
     const g = computed(() => (src.value === 'online' ? og : lg));
+    const origin = computed(() => originOf(g.value.mode));
+    const cleanQuery = () => {
+      const q = { ...route.query };
+      delete q.src;
+      return q;
+    };
+    const backLink = computed(() => ({ path: origin.value, query: cleanQuery() }));
+    const goOrigin = (mode) => router.replace({ path: originOf(mode || g.value.mode), query: cleanQuery() });
 
     const mult = ref(1);
     const flash = ref(null);
-    const setupError = ref('');
     const botBusy = ref(false);
     let flashTimer = null;
     let botTimer = null;
@@ -357,119 +210,36 @@ export default {
     const commit = () => {
       if (src.value === 'online') {
         set(onlineRef, plain(og)).catch(err => console.error('Kunne ikke gemme online-spil:', err));
+      } else {
+        saveLocal(lg);
       }
-      save({ game: lg, setup });
     };
-    watch(setup, () => save({ game: lg, setup }), { deep: true });
 
-    // ---------- online sync (scores/cricket + names from the scoreboard)
-    const onlineNames = ref(['Spiller 1', 'Spiller 2']);
-    const mySeat = computed(() => (local.seat === 1 || local.seat === 2 ? local.seat - 1 : -1));
+    // ---------- online sync
+    const mySeat = computed(() => {
+      const q = route.query.player;
+      if (q === '1' || q === '2') return Number(q) - 1;
+      return local.seat === 1 || local.seat === 2 ? local.seat - 1 : -1;
+    });
     let stopOnline = null;
+    let firstOnline = true;
     onMounted(() => {
-      stopOnline = onValue(firebaseRef(database, 'scores'), (snap) => {
-        const v = snap.val() || {};
-        onlineNames.value = [v.player1Name || 'Spiller 1', v.player2Name || 'Spiller 2'];
-        Object.assign(og, normalize(v.cricket));
-        // Join a running online game unless a local one is in progress here.
-        if (og.phase !== 'setup' && lg.phase === 'setup') src.value = 'online';
+      if (src.value === 'local' && lg.phase === 'setup') { goOrigin(lg.mode); return; }
+      stopOnline = onValue(onlineRef, (snap) => {
+        Object.assign(og, normalize(snap.val()));
+        if (src.value !== 'online') return;
+        if (og.phase === 'setup') {
+          // The game was ended (here or on the other phone): back to the scoreboard.
+          autoOpen.suppressed = false;
+          if (firstOnline && lg.phase !== 'setup') { src.value = 'local'; return; }
+          goOrigin('online');
+        }
+        firstOnline = false;
       });
     });
 
-    // ---------- setup
-    const colors = SIDE_COLORS;
-    const levelList = Object.values(LEVELS);
-    const knownNames = ref([]);
-    onMounted(async () => {
-      try {
-        const snap = await get(firebaseRef(database, 'history/matches'));
-        knownNames.value = playerNames(matchList(snap.val())).filter(n => !/^bot \(/i.test(n));
-      } catch (e) { /* offline: no suggestions */ }
-    });
-    const suggestions = computed(() => {
-      const used = setup.names.slice(0, setup.count).map(n => n.trim().toLowerCase());
-      return knownNames.value.filter(n => !used.includes(n.toLowerCase())).slice(0, 8);
-    });
-    const addName = (n) => {
-      const i = setup.names.slice(0, setup.count).findIndex(x => !x.trim());
-      if (i >= 0) setup.names[i] = n;
-    };
-    const shuffle = () => {
-      const arr = setup.names.slice(0, setup.count);
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      arr.forEach((n, i) => { setup.names[i] = n; });
-    };
-    const starterOptions = computed(() => {
-      if (setup.mode === 'ai') return [{ key: 'bull', label: 'Bull' }, { key: 'p0', label: 'Mig' }, { key: 'p1', label: 'Bot' }];
-      if (setup.mode === 'online') return [{ key: 'bull', label: 'Bull' }, { key: 'p0', label: onlineNames.value[0] }, { key: 'p1', label: onlineNames.value[1] }];
-      return [{ key: 'bull', label: 'Bull om start' }, { key: 'p0', label: 'Som skrevet' }];
-    });
-    const setMode = (m) => {
-      setup.mode = m;
-      if (!starterOptions.value.some(o => o.key === setup.start)) setup.start = 'bull';
-      setupError.value = '';
-    };
-
-    const startMatch = () => {
-      let players;
-      if (setup.mode === 'local') {
-        const names = setup.names.slice(0, setup.count).map((n, i) => n.trim() || `Spiller ${i + 1}`);
-        if (new Set(names.map(n => n.toLowerCase())).size !== names.length) {
-          setupError.value = 'To spillere har samme navn. Giv dem forskellige navne, så statistikken passer.';
-          return;
-        }
-        players = names.map(name => ({ name }));
-      } else if (setup.mode === 'ai') {
-        const me = setup.myName.trim() || local.name || 'Mig';
-        players = [{ name: me }, { name: `Bot (${LEVELS[setup.level].name})`, bot: setup.level }];
-      } else {
-        if (mySeat.value < 0) {
-          setupError.value = 'Vælg hvem denne telefon er.';
-          return;
-        }
-        players = onlineNames.value.map(name => ({ name }));
-      }
-      setupError.value = '';
-      const n = players.length;
-      const fresh = {
-        ...blankGame(),
-        mode: setup.mode,
-        order: setup.order,
-        legsToWin: setup.legsToWin,
-        level: setup.level,
-        players,
-        legs: players.map(() => 0),
-        stats: players.map(freshStats),
-        ...freshLeg(n),
-        matchId: push(firebaseRef(database, 'history/cricket')).key,
-        startedAt: Date.now(),
-      };
-      clearTimeout(botTimer);
-      botBusy.value = false;
-      src.value = setup.mode === 'online' ? 'online' : 'local';
-      Object.assign(g.value, fresh);
-      if (setup.start === 'bull') {
-        g.value.phase = 'bull';
-        g.value.bull = { results: players.map(() => null), active: players.map(() => true), round: 1 };
-        commit();
-      } else {
-        beginPlay(setup.start === 'p1' ? 1 : 0);
-      }
-    };
-
-    const beginPlay = (starter) => {
-      const s = g.value;
-      s.firstStarter = starter;
-      s.turn = starter;
-      s.phase = 'play';
-      commit();
-      showFlash();
-    };
-
     // ---------- bulls up
+    const colors = SIDE_COLORS;
     const bullLabel = BULL_LABEL;
     const bullRes = computed(() => resolveBullMulti(g.value.bull.results || [], g.value.bull.active || []));
     const canBull = (i) => {
@@ -562,6 +332,15 @@ export default {
       flashTimer = setTimeout(() => { flash.value = null; }, 1100);
     };
 
+    const beginPlay = (starter) => {
+      const s = g.value;
+      s.firstStarter = starter;
+      s.turn = starter;
+      s.phase = 'play';
+      commit();
+      showFlash();
+    };
+
     const saveHistory = () => {
       const s = g.value;
       if (!s.matchId) return;
@@ -603,7 +382,7 @@ export default {
       s.lastLegWinner = w;
       s.legOver = true;
       s.undo = [];
-      if (s.legs[w] >= s.legsToWin) {
+      if (s.legsToWin > 0 && s.legs[w] >= s.legsToWin) {
         s.phase = 'done';
         confetti({ particleCount: 140, spread: 80, origin: { y: 0.6 } });
       } else {
@@ -666,9 +445,8 @@ export default {
     });
 
     const restore = (snap) => {
-      const s = g.value;
       const o = JSON.parse(snap);
-      Object.assign(s, { marks: o.marks, points: o.points, turn: o.turn, visit: o.visit || [], prev: o.prev || null, stats: o.stats });
+      Object.assign(g.value, { marks: o.marks, points: o.points, turn: o.turn, visit: o.visit || [], prev: o.prev || null, stats: o.stats });
     };
 
     const undoDart = () => {
@@ -715,7 +493,6 @@ export default {
         if (cur.turn === turnBefore && !cur.legOver && cur.phase === 'play') {
           botTimer = setTimeout(step, BOT_DELAY);
         } else {
-          // Leave the bot's darts visible for a moment before your turn.
           botTimer = setTimeout(() => { botBusy.value = false; }, 250);
         }
       };
@@ -724,37 +501,46 @@ export default {
     watch(() => [g.value.turn, g.value.phase, g.value.legOver, g.value.legNo, src.value], () => runBot(), { immediate: true });
 
     // ---------- end / restart
-    const rematch = () => {
-      const s = g.value;
-      Object.assign(setup, { mode: s.mode, order: s.order, legsToWin: s.legsToWin, level: s.level });
-      if (s.mode === 'local') Object.assign(setup, { count: s.players.length, names: [...s.players.map(p => p.name), '', '', ''].slice(0, 4) });
-      if (s.mode === 'ai') setup.myName = s.players[0].name;
-      startMatch();
-    };
-    const quitMatch = async (silent) => {
-      const s = g.value;
-      if (!silent && !(await showConfirm('Kampen er gemt i historikken, som den står nu.', { title: 'Afslut kamp?', confirmText: 'Afslut' }))) return;
+    const stopTimers = () => {
       clearTimeout(botTimer);
       clearTimeout(flashTimer);
       botBusy.value = false;
       flash.value = null;
-      if (s.phase === 'play' && s.stats.some(st => st.darts > 0)) saveHistory();
-      setup.mode = s.mode || setup.mode;
-      Object.assign(s, blankGame(), { mode: s.mode });
+    };
+    const rematch = () => {
+      const s = g.value;
+      stopTimers();
+      const fresh = buildCricketGame({
+        mode: s.mode, players: s.players, order: s.order, legsToWin: s.legsToWin, level: s.level, start: s.start,
+      });
+      Object.assign(s, fresh);
       commit();
+      showFlash();
+    };
+    const quitMatch = async (silent) => {
+      const s = g.value;
+      if (!silent && !(await showConfirm('Kampen er gemt i historikken, som den står nu.', { title: 'Afslut kamp?', confirmText: 'Afslut' }))) return;
+      stopTimers();
+      if (s.phase === 'play' && s.stats.some(st => st.darts > 0)) saveHistory();
+      const mode = s.mode;
+      Object.assign(s, blankGame(), { mode });
+      commit();
+      goOrigin(mode);
+    };
+    // Leaving an online game with the back arrow: don't get pulled straight back in.
+    const leave = () => {
+      if (g.value.mode === 'online' && inGame.value) autoOpen.suppressed = true;
     };
 
     onUnmounted(() => {
-      clearTimeout(flashTimer);
-      clearTimeout(botTimer);
+      stopTimers();
       if (stopOnline) stopOnline();
     });
 
     return {
-      g, setup, local, setupError, suggestions, backLink, colors, levelList, mprHint: MPR_HINT, onlineNames, mySeat,
-      starterOptions, mult, flash, bullLabel, bullRes, targets, inGame, modeLabel, ranks, canInput, turnTag, waitText,
+      g, backLink, colors, mySeat, mult, flash, bullLabel, bullRes, targets, inGame, modeLabel, ranks, canInput, turnTag, waitText,
       lastVisitText, statRows, canUndo,
-      setMode, shuffle, addName, startMatch, beginPlay, canBull, bullVisible, setBull, bullRethrow,
+      beginPlay, canBull, bullVisible, setBull, bullRethrow, leave,
       allowed, isDead, isNextForTurn, markText, targetName, dartLabel, enter, endVisitEarly, undoDart, nextLeg, rematch, quitMatch,
     };
   },

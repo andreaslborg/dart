@@ -12,6 +12,10 @@
 
       <!-- ============ SETUP ============ -->
       <section v-if="g.phase === 'setup'" class="setup">
+        <button v-if="resumeCricket" type="button" class="resume-btn" @click="openCricket">
+          <span>Cricket-kamp i gang</span>
+          <span class="resume-sub">{{ resumeCricket }} · Fortsæt</span>
+        </button>
         <label class="field">
           <span class="field-label">Dit navn</span>
           <input v-model="setup.name" type="text" maxlength="20" placeholder="Dit navn" autocomplete="off">
@@ -22,16 +26,14 @@
           <div class="levels">
             <button v-for="lv in levelList" :key="lv.key" type="button" class="level" :class="{ selected: setup.level === lv.key }" @click="setup.level = lv.key">
               <span class="level-name">{{ lv.name }}</span>
-              <span class="level-avg">Gns. ca. {{ lv.target }}</span>
+              <span class="level-avg">{{ setup.game === 'cricket' ? `ca. ${cricketMpr[lv.key]} MPR` : `Gns. ca. ${lv.target}` }}</span>
             </button>
           </div>
         </div>
 
         <div class="field">
           <span class="field-label">Spil</span>
-          <div class="segmented">
-            <button v-for="s in [301, 501]" :key="s" type="button" :class="{ selected: setup.startScore === s }" @click="setup.startScore = s">{{ s }}</button>
-          </div>
+          <GamePicker v-model:game="setup.game" v-model:score="setup.startScore" v-model:order="setup.order" :scores="[301, 501]" />
         </div>
 
         <div class="field">
@@ -51,7 +53,7 @@
         </div>
 
         <button type="button" class="primary-btn" @click="startMatch">Start kamp</button>
-        <p class="note">Double-out: du skal slutte på en double. Går du under 0 eller står på 1, er det bust.</p>
+        <p v-if="setup.game !== 'cricket'" class="note">Double-out: du skal slutte på en double. Går du under 0 eller står på 1, er det bust.</p>
       </section>
 
       <!-- ============ PLAY / DONE ============ -->
@@ -191,7 +193,7 @@
 
 <script>
 import { reactive, ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { getDatabase, ref as firebaseRef, set, push } from 'firebase/database';
 import confetti from 'canvas-confetti';
 import getDartsCheckout from '@/getDartsCheckout';
@@ -199,6 +201,8 @@ import { LEVELS, playVisit, humanVisitResult, throwBull } from '@/ai/dartBot';
 import { dartToBull, BULL_LABEL } from '@/bullsUp';
 import BullsUpPanel from '@/components/BullsUpPanel.vue';
 import LockButton from '@/components/LockButton.vue';
+import GamePicker from '@/components/GamePicker.vue';
+import { startCricket, runningLocal } from '@/cricketStart';
 import VoiceInput from '@/components/VoiceInput.vue';
 import { useVoiceInput } from '@/useVoiceInput';
 import { dialogState } from '@/dialog';
@@ -224,9 +228,10 @@ const save = (key, value) => {
 };
 
 export default {
-  components: { BullsUpPanel, VoiceInput, LockButton },
+  components: { BullsUpPanel, VoiceInput, LockButton, GamePicker },
   setup() {
     const route = useRoute();
+    const router = useRouter();
     const database = getDatabase();
     const backLink = computed(() => ({ path: '/', query: route.query }));
     const levelList = Object.values(LEVELS);
@@ -239,7 +244,13 @@ export default {
       startScore: (saved && saved.setup && saved.setup.startScore) || 501,
       legsToWin: (saved && saved.setup && saved.setup.legsToWin) || 2,
       starter: (saved && saved.setup && saved.setup.starter) || 'me',
+      game: (saved && saved.setup && saved.setup.game) || 'x01',
+      order: (saved && saved.setup && saved.setup.order) || 'free',
     });
+    const cricketMpr = { begynder: '0,9', pub: '1,6', liga: '2,4', pro: '3,4' };
+    const runningCricket = runningLocal('ai');
+    const resumeCricket = runningCricket ? runningCricket.players.map(p => p.name).join(' mod ') : '';
+    const openCricket = () => router.push({ path: '/cricket', query: { ...route.query, src: 'local' } });
 
     const blankGame = () => ({
       phase: 'setup', level: 'pub', botName: '', myName: '', startScore: 501, legsToWin: 2, starter: 'me',
@@ -367,6 +378,17 @@ export default {
       const name = (setup.name || '').trim() || 'Mig';
       setup.name = name;
       if (!local.name) local.name = name;
+      if (setup.game === 'cricket') {
+        startCricket({
+          mode: 'ai',
+          players: [{ name }, { name: botNameFor(setup.level), bot: setup.level }],
+          order: setup.order,
+          legsToWin: setup.legsToWin,
+          level: setup.level,
+          start: { me: 'p0', bot: 'p1', bull: 'bull' }[setup.starter] || 'p0',
+        }, router, route.query);
+        return;
+      }
       Object.assign(g, blankGame(), {
         phase: 'play', level: setup.level, botName: botNameFor(setup.level), myName: name,
         startScore: setup.startScore, legsToWin: setup.legsToWin, starter: setup.starter,
@@ -574,7 +596,7 @@ export default {
     onUnmounted(clearTimers);
 
     return {
-      g, setup, levelList, botNameFor, backLink, currentScore, pendingDouble, botVisit, legOver, myTurn,
+      g, setup, levelList, cricketMpr, resumeCricket, openCricket, botNameFor, backLink, currentScore, pendingDouble, botVisit, legOver, myTurn,
       fmtAvg, recent, hint, chipText, chipClass, botVisitTotal, statRows,
       startMatch, nextLeg, press, submitMine, answerDouble, rematch, toSetup, quitMatch,
       bullThinking, bullNote, bullSet, bullRethrow, bullStart, voice, focusMode,
@@ -1517,5 +1539,31 @@ button:disabled {
 .sheet-options button:hover {
   background: var(--accent);
   color: var(--on-accent);
+}
+
+.resume-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--text);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 20px;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+}
+
+.resume-sub {
+  font-family: 'Barlow', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: none;
+  color: var(--muted);
 }
 </style>

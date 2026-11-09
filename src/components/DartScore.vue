@@ -38,13 +38,11 @@
         <template v-if="starterPrompt.type === 'match'">
           <h2 id="starter-title" class="picker-title">Ny kamp</h2>
           <span class="picker-label">SPIL</span>
-          <div class="game-pick" role="group" aria-label="Vælg spil">
-            <button v-for="p in presetScores" :key="'g' + p" type="button" :class="{ selected: starterPrompt.score === p }" :aria-pressed="starterPrompt.score === p ? 'true' : 'false'" @click="starterPrompt.score = p">{{ p }}</button>
-          </div>
+          <GamePicker v-model:game="starterPrompt.game" v-model:score="starterPrompt.score" v-model:order="starterPrompt.order" :scores="presetScores" class="prompt-games" />
           <span class="picker-label">HVEM STARTER?</span>
         </template>
         <h2 v-else id="starter-title" class="picker-title">Hvem starter?</h2>
-        <p class="picker-sub">Starter leg 1, 3, 5 … Den anden starter leg 2, 4, 6 …</p>
+        <p v-if="!(starterPrompt.type === 'match' && starterPrompt.game === 'cricket')" class="picker-sub">Starter leg 1, 3, 5 … Den anden starter leg 2, 4, 6 …</p>
         <div class="picker-options">
           <button type="button" class="picker-option" @click="chooseStarter(1)">
             <span class="picker-num">SPILLER 1</span>
@@ -102,7 +100,8 @@
             </div>
             <span class="idle-note">{{ lastMatch.saved ? 'Gemt i historikken' : 'Ingen vundne legs, så den blev ikke gemt' }}</span>
           </div>
-          <button type="button" class="idle-start" @click="openNewMatch">Start ny kamp</button>
+          <button v-if="cricketActive" type="button" class="idle-start" @click="openCricket">Fortsæt Cricket-kamp</button>
+          <button type="button" class="idle-start" :class="{ secondary: cricketActive }" @click="openNewMatch">Start ny kamp</button>
           <router-link :to="historyLink" class="idle-link">Se historik</router-link>
         </section>
 
@@ -264,13 +263,15 @@ import { showAlert, showConfirm, showPrompt } from '@/dialog';
 import { local, shared, buzz } from '@/settings';
 import AppMenu from '@/components/AppMenu.vue';
 import LockButton from '@/components/LockButton.vue';
+import GamePicker from '@/components/GamePicker.vue';
+import { startCricket, autoOpen } from '@/cricketStart';
 import BullsUpPanel from '@/components/BullsUpPanel.vue';
 import VoiceInput from '@/components/VoiceInput.vue';
 import { useVoiceInput } from '@/useVoiceInput';
 import { dialogState } from '@/dialog';
 import confetti from 'canvas-confetti';
 export default {
-  components: { AppMenu, BullsUpPanel, VoiceInput, LockButton },
+  components: { AppMenu, BullsUpPanel, VoiceInput, LockButton, GamePicker },
   setup() {
     const route = useRoute();
     const router = useRouter();
@@ -551,6 +552,11 @@ export default {
           player1Checkouts.value = data.player1Checkouts || [];
           player2Checkouts.value = data.player2Checkouts || [];
           currentMatchId.value = data.currentMatchId || null;
+          // A Cricket game on the two phones: open it (unless this phone backed out of it).
+          const cPhase = data.cricket && data.cricket.phase;
+          cricketActive.value = ['bull', 'play', 'done'].includes(cPhase);
+          if (!cricketActive.value) autoOpen.suppressed = false;
+          else if ((cPhase === 'bull' || cPhase === 'play') && !autoOpen.suppressed) openCricket();
           saveMatchSnapshot(data);
         }
       });
@@ -756,7 +762,7 @@ export default {
 
     const resetWins = async () => {
       if (await showConfirm('Den nuværende kamp er gemt i historikken.', { title: 'Start ny kamp?', confirmText: 'Ny kamp' })) {
-        starterPrompt.value = { type: 'match', score: shared.defaultStartScore || 501 };
+        starterPrompt.value = { type: 'match', score: shared.defaultStartScore || 501, game: 'x01', order: 'free' };
       }
     };
 
@@ -828,8 +834,36 @@ export default {
       });
     };
 
+    // ---- Cricket on the two phones
+    const cricketActive = ref(false);
+    const openCricket = () => router.push({ path: '/cricket', query: { ...route.query, src: 'online' } });
+    const startOnlineCricket = async (pending, start) => {
+      // Close the X01 board (kept in the history as usual), then start Cricket for both phones.
+      const legs = (player1Wins.value || 0) + (player2Wins.value || 0);
+      const fields = {
+        ...freshMatchFields(shared.defaultStartScore || 501),
+        isPlayer1Turn: true,
+        matchStarter: null,
+        matchEnded: true,
+      };
+      if (!matchEnded.value && legs > 0) {
+        fields.lastMatch = {
+          p1Name: player1Name.value, p2Name: player2Name.value,
+          p1Legs: player1Wins.value || 0, p2Legs: player2Wins.value || 0, saved: Boolean(currentMatchId.value), endedAt: Date.now(),
+        };
+      }
+      await update(dbRef, fields);
+      startCricket({
+        mode: 'online',
+        players: [{ name: player1Name.value }, { name: player2Name.value }],
+        order: pending.order || 'free',
+        legsToWin: shared.legsToWin || 2,
+        start,
+      }, router, route.query);
+    };
+
     const openNewMatch = () => {
-      starterPrompt.value = { type: 'match', score: shared.defaultStartScore || 501 };
+      starterPrompt.value = { type: 'match', score: shared.defaultStartScore || 501, game: 'x01', order: 'free' };
     };
 
     // ---- bulls up (synced, so both phones see the same panel)
@@ -837,6 +871,10 @@ export default {
       const pending = starterPrompt.value;
       starterPrompt.value = null;
       if (!pending) return;
+      if (pending.type === 'match' && pending.game === 'cricket') {
+        startOnlineCricket(pending, 'bull');
+        return;
+      }
       update(dbRef, { bullsUp: { purpose: pending.type, score: pending.score || null, p1: null, p2: null, round: 1 } });
     };
     // A phone can only enter the result for its own seat.
@@ -862,6 +900,10 @@ export default {
       const pending = starterPrompt.value;
       starterPrompt.value = null;
       if (!pending) return;
+      if (pending.type === 'match' && pending.game === 'cricket') {
+        startOnlineCricket(pending, n === 1 ? 'p0' : 'p1');
+        return;
+      }
       if (pending.type === 'match') startNewMatch(n, pending.score);
       else startLeg(pending.score, n);
     };
@@ -996,6 +1038,8 @@ export default {
       lastMatch,
       endMatch,
       openNewMatch,
+      cricketActive,
+      openCricket,
       bullOwnIndex,
       voice,
       focusView,
@@ -2121,5 +2165,17 @@ button {
     flex: 1;
     margin-top: 60px;
   }
+}
+
+.prompt-games {
+  --gp-bg: var(--bg);
+  margin-bottom: 4px;
+}
+
+.idle-start.secondary,
+.idle-start.secondary:hover {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
 }
 </style>

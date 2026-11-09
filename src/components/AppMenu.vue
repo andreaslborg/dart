@@ -54,6 +54,17 @@
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
         </router-link>
 
+        <div class="menu-item soon" aria-disabled="true" tabindex="0">
+          <span class="menu-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /><path d="M8 4l-4 4M20 16l-4 4" /></svg>
+          </span>
+          <span class="menu-text">
+            <span class="menu-label">Cricket</span>
+            <span class="menu-desc">Cut-throat: luk 15–20 og bull, giv point til de andre</span>
+          </span>
+          <span class="soon-tag">KOMMER SNART</span>
+        </div>
+
         <router-link :to="settingsLink" class="menu-item" @click="close">
           <span class="menu-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>

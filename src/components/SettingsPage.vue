@@ -150,6 +150,21 @@
             </div>
             <button type="button" class="small-btn danger" @click="resetScoreboard">Nulstil</button>
           </div>
+          <div class="row stack">
+            <span class="row-label">Omdøb spiller i historikken</span>
+            <p class="help">Samler en spillers kampe under et andet navn, fx "Mig" → "Andreas". Stats, rekorder og badges følger med.</p>
+            <div class="rename">
+              <label class="sr-only" for="rename-from">Nuværende navn</label>
+              <select id="rename-from" v-model="renameFrom" :disabled="!historyNames.length">
+                <option v-if="!historyNames.length" value="">Ingen kampe endnu</option>
+                <option v-for="n in historyNames" :key="n.key" :value="n.name">{{ n.name }} ({{ n.count }})</option>
+              </select>
+              <span class="rename-arrow" aria-hidden="true">→</span>
+              <label class="sr-only" for="rename-to">Nyt navn</label>
+              <input id="rename-to" v-model="renameTo" type="text" maxlength="20" placeholder="Nyt navn" autocomplete="off" @keyup.enter="renamePlayer">
+            </div>
+            <button type="button" class="small-btn rename-btn" :disabled="!canRename" @click="renamePlayer">{{ renaming ? 'Omdøber …' : 'Omdøb' }}</button>
+          </div>
           <div class="row">
             <div class="row-text">
               <span class="row-label">Slet historik</span>
@@ -171,9 +186,10 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getDatabase, ref as firebaseRef, onValue, update, remove } from 'firebase/database';
+import { normalizeName } from '@/matchHistory';
 import { local, shared, setShared, wakeLockSupported, vibrateSupported, buzz } from '@/settings';
 import { voiceSupported } from '@/voice';
 import { showConfirm, showAlert } from '@/dialog';
@@ -235,6 +251,88 @@ export default {
       showAlert('Scoreboardet er nulstillet.', { title: 'Klar' });
     };
 
+    // ---- rename a player across all saved matches (X01 + Cricket)
+    const rawMatches = ref({});
+    const rawCricket = ref({});
+    const renameFrom = ref('');
+    const renameTo = ref('');
+    const renaming = ref(false);
+    const PLAYER_KEYS = ['p1', 'p2', 'p3', 'p4'];
+    const historyNames = computed(() => {
+      const byKey = new Map();
+      [rawMatches.value, rawCricket.value].forEach((all) => {
+        Object.values(all || {}).forEach((m) => {
+          PLAYER_KEYS.forEach((k) => {
+            const n = m && m.players && m.players[k] && (m.players[k].name || '').trim();
+            if (!n || /^bot \(/i.test(n)) return;
+            const key = normalizeName(n);
+            const e = byKey.get(key) || { key, name: n, count: 0 };
+            e.count += 1;
+            byKey.set(key, e);
+          });
+        });
+      });
+      return [...byKey.values()].sort((a, b) => b.count - a.count);
+    });
+    const canRename = computed(() => !renaming.value && renameFrom.value && renameTo.value.trim()
+      && normalizeName(renameTo.value) !== normalizeName(renameFrom.value));
+
+    const renamePlayer = async () => {
+      if (!canRename.value) return;
+      const from = normalizeName(renameFrom.value);
+      const to = renameTo.value.trim();
+      const toKey = normalizeName(to);
+      const updates = {};
+      let changed = 0;
+      let skipped = 0;
+      const scan = (all, base, playersOf) => {
+        Object.entries(all || {}).forEach(([id, m]) => {
+          const ps = playersOf(m) || {};
+          const keys = PLAYER_KEYS.filter(k => ps[k] && normalizeName(ps[k].name) === from);
+          if (!keys.length) return;
+          // Both names in the same match would make it "Andreas vs Andreas": leave it.
+          if (PLAYER_KEYS.some(k => ps[k] && normalizeName(ps[k].name) === toKey)) { skipped += 1; return; }
+          keys.forEach((k) => { updates[`${base(id)}/${k}/name`] = to; });
+          changed += 1;
+        });
+      };
+      scan(rawMatches.value, id => `history/matches/${id}/players`, m => m.players);
+      scan(rawCricket.value, id => `history/cricket/${id}/players`, m => m.players);
+      if (!changed) {
+        showAlert(skipped ? `Alle kampe med "${renameFrom.value}" har også "${to}" som spiller, så de er ikke ændret.` : `Ingen kampe med "${renameFrom.value}".`, { title: 'Intet at omdøbe' });
+        return;
+      }
+      const note = skipped ? ` ${skipped} ${skipped === 1 ? 'kamp' : 'kampe'}, hvor begge navne er med, bliver ikke ændret.` : '';
+      if (!(await showConfirm(`${changed} ${changed === 1 ? 'kamp' : 'kampe'} med "${renameFrom.value}" får navnet "${to}".${note}`, { title: 'Omdøb spiller?', confirmText: 'Omdøb' }))) return;
+      // The scoreboard names follow along, so a running match keeps saving under the new name.
+      if (normalizeName(names.value[0]) === from) updates['scores/player1Name'] = to;
+      if (normalizeName(names.value[1]) === from) updates['scores/player2Name'] = to;
+      renaming.value = true;
+      try {
+        await update(firebaseRef(database), updates);
+        if (!local.name || normalizeName(local.name) === from) {
+          local.name = to;
+          nameDraft.value = to;
+        }
+        renameFrom.value = '';
+        renameTo.value = '';
+        showAlert(`${changed} ${changed === 1 ? 'kamp' : 'kampe'} hedder nu "${to}".`, { title: 'Omdøbt' });
+      } catch (e) {
+        showAlert('Det lykkedes ikke at omdøbe. Prøv igen.', { title: 'Fejl' });
+      } finally {
+        renaming.value = false;
+      }
+    };
+    // Suggest the AI default name "Mig" when it is in the history.
+    watch(historyNames, (list) => {
+      if (renameFrom.value) return;
+      const mig = list.find(n => n.key === 'mig');
+      if (mig) {
+        renameFrom.value = mig.name;
+        if (!renameTo.value && local.name && normalizeName(local.name) !== 'mig') renameTo.value = local.name;
+      }
+    });
+
     const deleteHistory = async () => {
       if (!(await showConfirm('Alle gemte kampe slettes. Det kan ikke fortrydes.', { title: 'Slet historik?', confirmText: 'Slet alt', danger: true }))) return;
       await update(scoresRef, { currentMatchId: null, matchStartedAt: null });
@@ -249,18 +347,22 @@ export default {
       window.location.reload();
     };
 
+    const stops = [];
     onMounted(() => {
+      stops.push(onValue(firebaseRef(database, 'history/matches'), (snap) => { rawMatches.value = snap.val() || {}; }, () => {}));
+      stops.push(onValue(firebaseRef(database, 'history/cricket'), (snap) => { rawCricket.value = snap.val() || {}; }, () => {}));
       stop = onValue(scoresRef, (snap) => {
         const d = snap.val() || {};
         names.value = [d.player1Name || 'Spiller 1', d.player2Name || 'Spiller 2'];
       });
     });
-    onUnmounted(() => { if (stop) stop(); });
+    onUnmounted(() => { if (stop) stop(); stops.forEach(f => f()); });
 
     return {
       local, shared, setShared, names, nameDraft, nameChanged, backLink,
       wakeLockSupported, vibrateSupported, voiceSupported,
       saveName, setSeat, toggleVibrate, resetScoreboard, deleteHistory, logOut,
+      historyNames, renameFrom, renameTo, renaming, canRename, renamePlayer,
     };
   },
 };
@@ -530,5 +632,57 @@ button {
 .small-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.rename {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.rename select,
+.rename input {
+  min-width: 0;
+  height: 48px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 18px;
+  outline: none;
+}
+
+.rename select:focus,
+.rename input:focus {
+  border-color: var(--accent);
+}
+
+.rename input::placeholder {
+  color: var(--placeholder);
+}
+
+.rename-arrow {
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.rename-btn {
+  align-self: flex-end;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>

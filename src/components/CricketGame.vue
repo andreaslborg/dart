@@ -6,7 +6,7 @@
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
         </router-link>
         <h1 class="page-title">{{ isCutGame ? 'CUT-THROAT' : 'CRICKET' }}</h1>
-        <div v-if="inGame" class="pill">{{ modeLabel }} · LEG {{ g.legNo }}{{ g.legsToWin ? ` · TIL ${g.legsToWin}` : '' }}</div>
+        <div v-if="inGame" class="pill">{{ modeLabel }}</div>
         <LockButton :available="inGame" />
       </header>
 
@@ -46,8 +46,26 @@
 
       <!-- ===================== GAME ===================== -->
       <template v-else>
+        <!-- Match score in legs -->
+        <section class="scoreline" :class="{ duo: g.players.length === 2 }" aria-label="Stilling i legs">
+          <div class="sl-sides">
+            <template v-for="(p, i) in g.players" :key="'sl' + i">
+              <span v-if="i > 0 && g.players.length === 2" class="sl-sep" aria-hidden="true">–</span>
+              <div class="sl-side" :class="{ lead: legLeaders.includes(i) }" :style="{ '--c': colors[i] }">
+                <span class="sl-name"><span class="dot" aria-hidden="true"></span>{{ p.name }}</span>
+                <span class="sl-legs">{{ g.legs[i] }}</span>
+              </div>
+            </template>
+          </div>
+          <span class="sl-target">{{ g.legsToWin ? `Først til ${g.legsToWin} ${g.legsToWin === 1 ? 'leg' : 'legs'}` : 'Spiller videre · ingen grænse' }} · Leg {{ g.legNo }}</span>
+        </section>
+
         <div v-if="g.phase === 'done'" class="banner" :style="{ '--c': colors[g.lastLegWinner] }">
-          <span>{{ g.players[g.lastLegWinner].name }} vandt kampen!</span>
+          <span>{{ g.players[g.lastLegWinner].name }} vandt {{ g.legs.join('–') }}!</span>
+          <button type="button" class="next-leg" @click="continueMatch">
+            Spil videre
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          </button>
         </div>
         <div v-else-if="g.legOver" class="banner" :style="{ '--c': colors[g.lastLegWinner] }">
           <span>{{ g.players[g.lastLegWinner].name }} vandt leg {{ g.legNo }}</span>
@@ -81,7 +99,7 @@
             >
               <span class="b-pname"><span class="dot" aria-hidden="true"></span>{{ p.name }}</span>
               <span class="b-points">{{ g.points[i] }}</span>
-              <span class="b-legs">{{ ranks[i] }}. · {{ g.legs[i] }} {{ g.legs[i] === 1 ? 'leg' : 'legs' }}</span>
+              <span class="b-legs">{{ ranks[i] }}. plads</span>
             </span>
           </div>
           <div v-for="(t, ti) in targets" :key="'r' + t" class="b-row" :class="{ dead: isDead(t), next: isNextForTurn(t) }" role="row">
@@ -137,7 +155,9 @@
         </section>
 
         <div v-if="g.phase === 'done'" class="end-actions">
-          <button type="button" class="primary-btn" @click="rematch">Omkamp</button>
+          <button type="button" class="primary-btn" @click="continueMatch">Spil videre</button>
+          <p class="help">Fortsæt med de samme spillere og stillingen {{ g.legs.join('–') }}, uden grænse for legs.</p>
+          <button type="button" class="ghost-btn" @click="rematch">Omkamp (start forfra)</button>
           <button type="button" class="ghost-btn" @click="quitMatch(true)">Ny opsætning</button>
         </div>
       </template>
@@ -462,6 +482,20 @@ export default {
       commit();
     };
 
+    // Most legs; nobody leads before the first leg is won.
+    const legLeaders = computed(() => {
+      const top = Math.max(0, ...g.value.legs);
+      return top > 0 ? g.value.legs.map((l, i) => (l === top ? i : -1)).filter(i => i >= 0) : [];
+    });
+
+    // The match is decided, but you want to keep playing: carry on with no leg limit.
+    const continueMatch = () => {
+      const s = g.value;
+      s.legsToWin = 0;
+      s.phase = 'play';
+      nextLeg();
+    };
+
     const nextLeg = () => {
       const s = g.value;
       Object.assign(s, freshLeg(s.players.length));
@@ -542,7 +576,7 @@ export default {
       g, isCutGame, backLink, colors, mySeat, mult, flash, bullLabel, bullRes, targets, inGame, modeLabel, ranks, canInput, turnTag, waitText,
       lastVisitText, statRows, canUndo,
       beginPlay, canBull, bullVisible, setBull, bullRethrow, leave,
-      allowed, isDead, isNextForTurn, markText, targetName, dartLabel, enter, endVisitEarly, undoDart, nextLeg, rematch, quitMatch,
+      allowed, isDead, isNextForTurn, markText, targetName, dartLabel, enter, endVisitEarly, undoDart, nextLeg, continueMatch, legLeaders, rematch, quitMatch,
     };
   },
 };
@@ -1465,5 +1499,101 @@ button:disabled {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ---------- leg score */
+.scoreline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 12px 6px;
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.sl-sides {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.duo .sl-sides {
+  grid-auto-flow: initial;
+  grid-auto-columns: initial;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.sl-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.duo .sl-side {
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.duo .sl-side:last-child {
+  flex-direction: row-reverse;
+}
+
+.sl-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 15px;
+  text-transform: uppercase;
+  color: var(--soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sl-name .dot {
+  width: 8px;
+  height: 8px;
+  flex-basis: 8px;
+}
+
+.sl-legs {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 40px;
+  line-height: 1;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sl-side.lead .sl-legs {
+  color: var(--c);
+}
+
+.sl-side.lead .sl-name {
+  color: var(--text);
+}
+
+.sl-sep {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 30px;
+  color: var(--faint);
+}
+
+.sl-target {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
 }
 </style>

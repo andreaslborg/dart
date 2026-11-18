@@ -218,6 +218,8 @@ html.game-locked .q-row {
   html.game-locked .cricket .b-cell { height: 26px; }
   html.game-locked .cricket .b-num { font-size: 19px; }
   html.game-locked .cricket .mult button { height: 36px; }
+  html.game-locked .cricket .scoreline { padding-top: 4px; padding-bottom: 3px; }
+  html.game-locked .cricket .sl-legs { font-size: 30px; }
   html.game-locked .cricket .actions button { height: 40px; }
 }
 

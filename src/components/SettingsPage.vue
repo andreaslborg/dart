@@ -163,7 +163,7 @@
               <label class="sr-only" for="rename-to">Nyt navn</label>
               <input id="rename-to" v-model="renameTo" type="text" maxlength="20" placeholder="Nyt navn" autocomplete="off" @keyup.enter="renamePlayer">
             </div>
-            <button type="button" class="small-btn rename-btn" :disabled="!canRename" @click="renamePlayer">{{ renaming ? 'Omdøber …' : 'Omdøb' }}</button>
+            <button type="button" class="rename-btn" :disabled="!canRename" @click="renamePlayer">{{ renaming ? 'Omdøber …' : 'Omdøb spiller' }}</button>
           </div>
           <div class="row">
             <div class="row-text">
@@ -181,6 +181,8 @@
           </div>
         </div>
       </section>
+
+      <p class="version">Version {{ buildLabel }}</p>
     </div>
   </div>
 </template>
@@ -358,7 +360,14 @@ export default {
     });
     onUnmounted(() => { if (stop) stop(); stops.forEach(f => f()); });
 
+    // Build time, so it's easy to see whether a phone has the newest version.
+    const built = process.env.VUE_APP_BUILD_TIME ? new Date(process.env.VUE_APP_BUILD_TIME) : null;
+    const buildLabel = built
+      ? built.toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Copenhagen' })
+      : 'udvikling';
+
     return {
+      buildLabel,
       local, shared, setShared, names, nameDraft, nameChanged, backLink,
       wakeLockSupported, vibrateSupported, voiceSupported,
       saveName, setSeat, toggleVibrate, resetScoreboard, deleteHistory, logOut,
@@ -671,7 +680,31 @@ button {
 }
 
 .rename-btn {
-  align-self: flex-end;
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.rename-btn:disabled {
+  background: var(--key);
+  color: var(--muted);
+  cursor: default;
+}
+
+.version {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--faint);
 }
 
 .sr-only {

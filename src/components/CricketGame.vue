@@ -114,7 +114,6 @@
               <span class="b-pname"><span class="dot" aria-hidden="true"></span>{{ p.name }}</span>
               <span class="b-points">{{ g.points[i] }}</span>
               <span class="b-legs">{{ ranks[i] }}. plads</span>
-              </span>
             </span>
           </div>
           <div v-for="(t, ti) in targets" :key="'r' + t" class="b-row" :class="{ dead: isDead(t), next: isNextForTurn(t) }" role="row">

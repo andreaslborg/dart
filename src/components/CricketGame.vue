@@ -87,7 +87,14 @@
             </span>
           </div>
         </section>
-        <p v-if="lastVisitText && g.phase === 'play' && !g.legOver" class="last-visit">{{ lastVisitText }}</p>
+        <section v-if="lastShown" class="last-visit" :style="{ '--c': colors[lastShown.p] }" aria-live="polite">
+          <span class="lv-label">SENESTE KAST</span>
+          <span class="lv-name"><span class="dot" aria-hidden="true"></span>{{ g.players[lastShown.p].name }}</span>
+          <span class="lv-darts">
+            <span v-for="(d, k) in lastShown.darts" :key="'lv' + k" class="lv-dart" :class="{ miss: !d.marked }">{{ dartLabel(d) }}</span>
+          </span>
+          <span v-if="lastShown.gave" class="lv-pts">{{ isCutGame ? `+${lastShown.gave} til andre` : `+${lastShown.gave}` }}</span>
+        </section>
 
         <!-- Marks board -->
         <div class="board" :style="{ '--cols': g.players.length }" role="table" aria-label="Cricket-tavle">
@@ -100,13 +107,17 @@
               <span class="b-pname"><span class="dot" aria-hidden="true"></span>{{ p.name }}</span>
               <span class="b-points">{{ g.points[i] }}</span>
               <span class="b-legs">{{ ranks[i] }}. plads</span>
+              <span class="b-last" :aria-label="`Seneste runde: ${(g.lastVisits[i] || []).map(dartLabel).join(', ') || 'ingen'}`">
+                <span v-for="(d, k) in (g.lastVisits[i] || [])" :key="'bl' + i + k" :class="{ miss: !d.marked }">{{ dartLabel(d) }}</span>
+                <span v-if="!(g.lastVisits[i] || []).length" class="miss">–</span>
+              </span>
             </span>
           </div>
           <div v-for="(t, ti) in targets" :key="'r' + t" class="b-row" :class="{ dead: isDead(t), next: isNextForTurn(t) }" role="row">
             <span class="b-num" role="rowheader">{{ targetName(t) }}</span>
             <span
               v-for="(p, i) in g.players" :key="'c' + t + i" role="cell"
-              class="b-cell" :class="{ active: i === g.turn && g.phase === 'play' && !g.legOver }" :style="{ '--c': colors[i] }"
+              class="b-cell" :class="{ active: i === g.turn && g.phase === 'play' && !g.legOver, recent: recentHit(i, t) }" :style="{ '--c': colors[i] }"
               :aria-label="`${p.name}: ${markText(g.marks[i][ti])}`"
             >
               <svg v-if="g.marks[i][ti] >= 1" class="mark" viewBox="0 0 24 24" aria-hidden="true">
@@ -324,6 +335,21 @@ export default {
     const isNextForTurn = (t) => g.value.order === 'strict' && g.value.phase === 'play' && !g.value.legOver
       && g.value.marks.length > 0 && nextStrict(g.value.marks, g.value.turn) === t;
     const markText = (m) => (m >= 3 ? 'lukket' : m === 2 ? '2 markeringer' : m === 1 ? '1 markering' : 'ingen');
+    // The most recent visit: the darts thrown so far this turn, otherwise the previous player's turn.
+    const lastShown = computed(() => {
+      const s = g.value;
+      if (s.phase === 'bull' || !s.players.length) return null;
+      if (s.visit.length && !s.legOver) {
+        return { p: s.turn, darts: s.visit, gave: s.visit.reduce((a, d) => a + (d.gave || 0), 0) };
+      }
+      if (s.prev && s.players[s.prev.p]) return s.prev;
+      return null;
+    });
+    // Board cells hit (for an effect) in that visit get a ring.
+    const recentHit = (i, t) => {
+      const v = lastShown.value;
+      return Boolean(v && v.p === i && v.darts.some(d => d.t === t && d.marked));
+    };
     const lastVisitText = computed(() => {
       const p = g.value.prev;
       if (!p || !g.value.players[p.p]) return '';
@@ -382,13 +408,14 @@ export default {
 
     const snapshot = () => {
       const s = g.value;
-      return JSON.stringify({ by: s.turn, marks: s.marks, points: s.points, turn: s.turn, visit: s.visit, prev: s.prev, stats: s.stats });
+      return JSON.stringify({ by: s.turn, marks: s.marks, points: s.points, turn: s.turn, visit: s.visit, prev: s.prev, lastVisits: s.lastVisits, stats: s.stats });
     };
 
     const endVisit = () => {
       const s = g.value;
       s.stats[s.turn].visits += 1;
       s.prev = { p: s.turn, darts: s.visit.slice(), gave: s.visit.reduce((a, d) => a + (d.gave || 0), 0) };
+      s.lastVisits[s.turn] = s.visit.slice();
       s.visit = [];
       s.turn = (s.turn + 1) % s.players.length;
       mult.value = 1;
@@ -398,7 +425,10 @@ export default {
     const finishLeg = (w) => {
       const s = g.value;
       s.stats[s.turn].visits += 1;
-      s.prev = null;
+      // Keep the winning visit on screen.
+      s.prev = { p: s.turn, darts: s.visit.slice(), gave: s.visit.reduce((a, d) => a + (d.gave || 0), 0) };
+      s.lastVisits[s.turn] = s.visit.slice();
+      s.visit = [];
       s.legs[w] += 1;
       s.lastLegWinner = w;
       s.legOver = true;
@@ -467,7 +497,10 @@ export default {
 
     const restore = (snap) => {
       const o = JSON.parse(snap);
-      Object.assign(g.value, { marks: o.marks, points: o.points, turn: o.turn, visit: o.visit || [], prev: o.prev || null, stats: o.stats });
+      Object.assign(g.value, {
+        marks: o.marks, points: o.points, turn: o.turn, visit: o.visit || [], prev: o.prev || null, stats: o.stats,
+        lastVisits: o.lastVisits || g.value.players.map(() => []),
+      });
     };
 
     const undoDart = () => {
@@ -503,6 +536,7 @@ export default {
       s.legOver = false;
       s.visit = [];
       s.prev = null;
+      s.lastVisits = s.players.map(() => []);
       s.undo = [];
       s.turn = (s.firstStarter + s.legNo - 1) % s.players.length;
       commit();
@@ -574,7 +608,7 @@ export default {
 
     return {
       g, isCutGame, backLink, colors, mySeat, mult, flash, bullLabel, bullRes, targets, inGame, modeLabel, ranks, canInput, turnTag, waitText,
-      lastVisitText, statRows, canUndo,
+      lastVisitText, lastShown, recentHit, statRows, canUndo,
       beginPlay, canBull, bullVisible, setBull, bullRethrow, leave,
       allowed, isDead, isNextForTurn, markText, targetName, dartLabel, enter, endVisitEarly, undoDart, nextLeg, continueMatch, legLeaders, rematch, quitMatch,
     };
@@ -1163,12 +1197,99 @@ button:disabled {
 }
 
 .last-visit {
-  margin: -4px 0 0;
-  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--c);
+  min-width: 0;
+}
+
+.lv-label {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.12em;
   color: var(--muted);
+  white-space: nowrap;
+}
+
+.lv-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 16px;
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.lv-name .dot {
+  width: 8px;
+  height: 8px;
+  flex-basis: 8px;
+}
+
+.lv-darts {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.lv-dart {
+  min-width: 40px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c);
+  color: var(--on-accent);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.lv-dart.miss {
+  background: var(--key);
+  color: var(--muted);
+}
+
+.lv-pts {
+  flex: 0 0 auto;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--c);
+  white-space: nowrap;
+}
+
+.b-last {
+  display: flex;
+  gap: 3px;
+  margin-top: 2px;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.b-last .miss {
+  color: var(--faint);
+}
+
+.b-cell.recent {
+  box-shadow: inset 0 0 0 2px var(--c);
 }
 
 .wait-text {

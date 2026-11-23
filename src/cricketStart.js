@@ -14,7 +14,7 @@ export const ONLINE_PATH = 'scores/cricket';
 export const blankGame = () => ({
   mode: 'local', phase: 'setup', variant: 'cut', order: 'free', legsToWin: 2, legNo: 1, level: 'pub', start: 'bull',
   players: [], legs: [], marks: [], points: [], stats: [], turn: 0, firstStarter: 0,
-  visit: [], prev: null, legOver: false, lastLegWinner: 0, undo: [], matchId: null, startedAt: null,
+  visit: [], prev: null, lastVisits: [], legOver: false, lastLegWinner: 0, undo: [], matchId: null, startedAt: null,
   bull: { results: [], active: [], round: 1 },
 });
 
@@ -32,6 +32,7 @@ export function normalize(raw) {
   g.marks = arr(g.marks, () => TARGETS.map(() => 0)).map(row => TARGETS.map((t, i) => (row && row[i]) || 0));
   g.stats = arr(g.stats, freshStats).map(s => ({ ...freshStats(), ...s }));
   g.visit = Object.values(g.visit || {});
+  g.lastVisits = arr(g.lastVisits, () => []).map(v => Object.values(v || {}));
   g.undo = Object.values(g.undo || {});
   const b = g.bull || {};
   g.bull = { round: b.round || 1, results: arr(b.results, null), active: arr(b.active, false) };
@@ -52,6 +53,7 @@ export function buildCricketGame(cfg) {
     start: cfg.start || 'bull',
     players,
     legs: players.map(() => 0),
+    lastVisits: players.map(() => []),
     stats: players.map(freshStats),
     ...freshLeg(n),
     matchId: push(firebaseRef(getDatabase(), 'history/cricket')).key,

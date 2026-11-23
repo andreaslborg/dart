@@ -220,6 +220,9 @@ html.game-locked .q-row {
   html.game-locked .cricket .mult button { height: 36px; }
   html.game-locked .cricket .scoreline { padding-top: 4px; padding-bottom: 3px; }
   html.game-locked .cricket .sl-legs { font-size: 30px; }
+  html.game-locked .cricket .b-last { display: none; }
+  html.game-locked .cricket .lv-label { display: none; }
+  html.game-locked .cricket .last-visit { min-height: 34px; padding-top: 3px; padding-bottom: 3px; }
   html.game-locked .cricket .actions button { height: 40px; }
 }
 

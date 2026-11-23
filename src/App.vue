@@ -223,7 +223,14 @@ html.game-locked .q-row {
   html.game-locked .cricket .lv { padding-top: 4px; padding-bottom: 4px; gap: 2px; }
   html.game-locked .cricket .lv-dart, html.game-locked .cricket .lv-none { height: 22px; }
   html.game-locked .cricket .last-visits.many ~ .board .b-cell { height: 23px; }
-  html.game-locked .cricket .last-visits.many { gap: 4px; }
+  html.game-locked .cricket .last-visits.many { gap: 4px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  html.game-locked .cricket .last-visits.many .lv { padding: 3px 4px 4px 6px; }
+  html.game-locked .cricket .last-visits.many .lv-name { font-size: 11px; }
+  html.game-locked .cricket .last-visits.many .lv-me,
+  html.game-locked .cricket .last-visits.many .lv-pts { display: none; }
+  html.game-locked .cricket .last-visits.many .lv-darts { gap: 2px; width: 100%; }
+  html.game-locked .cricket .last-visits.many .lv-dart { min-width: 0; flex: 1; height: 20px; padding: 0 2px; font-size: 12px; }
+  html.game-locked .cricket .last-visits.many .lv-none { height: 20px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   html.game-locked .cricket .actions button { height: 40px; }
 }
 

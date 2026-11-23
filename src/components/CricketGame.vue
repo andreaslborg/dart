@@ -335,20 +335,18 @@ export default {
     const isNextForTurn = (t) => g.value.order === 'strict' && g.value.phase === 'play' && !g.value.legOver
       && g.value.marks.length > 0 && nextStrict(g.value.marks, g.value.turn) === t;
     const markText = (m) => (m >= 3 ? 'lukket' : m === 2 ? '2 markeringer' : m === 1 ? '1 markering' : 'ingen');
-    // The most recent visit: the darts thrown so far this turn, otherwise the previous player's turn.
+    // The previous completed visit (the current one is shown in the turn card).
     const lastShown = computed(() => {
       const s = g.value;
       if (s.phase === 'bull' || !s.players.length) return null;
-      if (s.visit.length && !s.legOver) {
-        return { p: s.turn, darts: s.visit, gave: s.visit.reduce((a, d) => a + (d.gave || 0), 0) };
-      }
-      if (s.prev && s.players[s.prev.p]) return s.prev;
-      return null;
+      return s.prev && s.players[s.prev.p] ? s.prev : null;
     });
-    // Board cells hit (for an effect) in that visit get a ring.
+    // Board cells hit (for an effect) in the previous visit or so far this turn get a ring.
     const recentHit = (i, t) => {
-      const v = lastShown.value;
-      return Boolean(v && v.p === i && v.darts.some(d => d.t === t && d.marked));
+      const s = g.value;
+      const hit = (v) => Boolean(v && v.p === i && (v.darts || []).some(d => d.t === t && d.marked));
+      const cur = s.visit.length && !s.legOver ? { p: s.turn, darts: s.visit } : null;
+      return hit(lastShown.value) || hit(cur);
     };
     const lastVisitText = computed(() => {
       const p = g.value.prev;

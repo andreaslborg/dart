@@ -87,13 +87,20 @@
             </span>
           </div>
         </section>
-        <section v-if="lastShown" class="last-visit" :style="{ '--c': colors[lastShown.p] }" aria-live="polite">
-          <span class="lv-label">SENESTE KAST</span>
-          <span class="lv-name"><span class="dot" aria-hidden="true"></span>{{ g.players[lastShown.p].name }}</span>
-          <span class="lv-darts">
-            <span v-for="(d, k) in lastShown.darts" :key="'lv' + k" class="lv-dart" :class="{ miss: !d.marked }">{{ dartLabel(d) }}</span>
-          </span>
-          <span v-if="lastShown.gave" class="lv-pts">{{ isCutGame ? `+${lastShown.gave} til andre` : `+${lastShown.gave}` }}</span>
+        <section v-if="g.phase !== 'bull' && g.players.length" class="last-visits" :class="{ many: g.players.length > 2 }" aria-label="Seneste kast">
+          <div
+            v-for="(p, i) in g.players" :key="'lv' + i" class="lv"
+            :class="{ latest: lastShown && lastShown.p === i }" :style="{ '--c': colors[i] }"
+          >
+            <span class="lv-name"><span class="dot" aria-hidden="true"></span>{{ p.name }}<span v-if="isMe(i)" class="lv-me">DIG</span></span>
+            <span class="lv-row">
+              <span class="lv-darts">
+                <span v-for="(d, k) in (g.lastVisits[i] || [])" :key="'lvd' + i + k" class="lv-dart" :class="{ miss: !d.marked }">{{ dartLabel(d) }}</span>
+                <span v-if="!(g.lastVisits[i] || []).length" class="lv-none">Ingen kast endnu</span>
+              </span>
+              <span v-if="visitPoints(i)" class="lv-pts">{{ isCutGame ? `+${visitPoints(i)} til andre` : `+${visitPoints(i)}` }}</span>
+            </span>
+          </div>
         </section>
 
         <!-- Marks board -->
@@ -107,9 +114,6 @@
               <span class="b-pname"><span class="dot" aria-hidden="true"></span>{{ p.name }}</span>
               <span class="b-points">{{ g.points[i] }}</span>
               <span class="b-legs">{{ ranks[i] }}. plads</span>
-              <span class="b-last" :aria-label="`Seneste runde: ${(g.lastVisits[i] || []).map(dartLabel).join(', ') || 'ingen'}`">
-                <span v-for="(d, k) in (g.lastVisits[i] || [])" :key="'bl' + i + k" :class="{ miss: !d.marked }">{{ dartLabel(d) }}</span>
-                <span v-if="!(g.lastVisits[i] || []).length" class="miss">–</span>
               </span>
             </span>
           </div>
@@ -341,6 +345,14 @@ export default {
       if (s.phase === 'bull' || !s.players.length) return null;
       return s.prev && s.players[s.prev.p] ? s.prev : null;
     });
+    const visitPoints = (i) => (g.value.lastVisits[i] || []).reduce((a, d) => a + (d.gave || 0), 0);
+    // On a shared phone (local) nobody is "me"; online it's this phone's seat, vs the bot it's player 1.
+    const isMe = (i) => {
+      const s = g.value;
+      if (s.mode === 'online') return i === mySeat.value;
+      if (s.mode === 'ai') return !s.players[i].bot;
+      return false;
+    };
     // Board cells hit (for an effect) in the previous visit or so far this turn get a ring.
     const recentHit = (i, t) => {
       const s = g.value;
@@ -606,7 +618,7 @@ export default {
 
     return {
       g, isCutGame, backLink, colors, mySeat, mult, flash, bullLabel, bullRes, targets, inGame, modeLabel, ranks, canInput, turnTag, waitText,
-      lastVisitText, lastShown, recentHit, statRows, canUndo,
+      lastVisitText, lastShown, recentHit, visitPoints, isMe, statRows, canUndo,
       beginPlay, canBull, bullVisible, setBull, bullRethrow, leave,
       allowed, isDead, isNextForTurn, markText, targetName, dartLabel, enter, endVisitEarly, undoDart, nextLeg, continueMatch, legLeaders, rematch, quitMatch,
     };
@@ -1194,25 +1206,25 @@ button:disabled {
   color: var(--text);
 }
 
-.last-visit {
+.last-visits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.lv {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 6px 10px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 6px 8px;
   border-radius: 12px;
   background: var(--surface);
   box-shadow: inset 3px 0 0 var(--c);
-  min-width: 0;
 }
 
-.lv-label {
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--muted);
-  white-space: nowrap;
+.lv.latest {
+  box-shadow: inset 3px 0 0 var(--c), inset 0 0 0 1px var(--c);
 }
 
 .lv-name {
@@ -1221,9 +1233,10 @@ button:disabled {
   gap: 5px;
   min-width: 0;
   font-family: var(--display);
-  font-weight: 800;
-  font-size: 16px;
+  font-weight: 700;
+  font-size: 13px;
   text-transform: uppercase;
+  color: var(--soft);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1235,18 +1248,31 @@ button:disabled {
   flex-basis: 8px;
 }
 
+.lv-me {
+  margin-left: 2px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--c);
+}
+
+.lv-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .lv-darts {
   display: flex;
-  gap: 4px;
-  margin-left: auto;
-  flex: 0 0 auto;
+  gap: 3px;
+  min-width: 0;
 }
 
 .lv-dart {
-  min-width: 40px;
-  height: 28px;
-  padding: 0 6px;
-  border-radius: 7px;
+  min-width: 34px;
+  height: 26px;
+  padding: 0 5px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1254,7 +1280,7 @@ button:disabled {
   color: var(--on-accent);
   font-family: var(--display);
   font-weight: 800;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .lv-dart.miss {
@@ -1262,28 +1288,21 @@ button:disabled {
   color: var(--muted);
 }
 
+.lv-none {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--faint);
+}
+
 .lv-pts {
-  flex: 0 0 auto;
+  margin-left: auto;
   font-family: var(--display);
   font-weight: 800;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--c);
   white-space: nowrap;
-}
-
-.b-last {
-  display: flex;
-  gap: 3px;
-  margin-top: 2px;
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 12px;
-  color: var(--text);
-  white-space: nowrap;
-}
-
-.b-last .miss {
-  color: var(--faint);
 }
 
 .b-cell.recent {

@@ -222,6 +222,14 @@ html.game-locked .q-row {
   html.game-locked .cricket .sl-legs { font-size: 30px; }
   html.game-locked .cricket .lv { padding-top: 4px; padding-bottom: 4px; gap: 2px; }
   html.game-locked .cricket .lv-dart, html.game-locked .cricket .lv-none { height: 22px; }
+  html.game-locked .cricket .lock-col { gap: 6px; }
+  html.game-locked .cricket .sl-target,
+  html.game-locked .cricket .b-legs { display: none; }
+  html.game-locked .cricket .turn-card { padding-top: 4px; padding-bottom: 4px; }
+  html.game-locked .cricket .turn-left { flex-direction: row; align-items: center; gap: 8px; }
+  html.game-locked .cricket .turn-tag { align-self: center; }
+  html.game-locked .cricket .b-cell { height: 24px; }
+  html.game-locked .cricket .mult button { height: 32px; }
   html.game-locked .cricket .last-visits.many ~ .board .b-cell { height: 23px; }
   html.game-locked .cricket .last-visits.many { gap: 4px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
   html.game-locked .cricket .last-visits.many .lv { padding: 3px 4px 4px 6px; }

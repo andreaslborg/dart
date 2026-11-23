@@ -222,6 +222,8 @@ html.game-locked .q-row {
   html.game-locked .cricket .sl-legs { font-size: 30px; }
   html.game-locked .cricket .lv { padding-top: 4px; padding-bottom: 4px; gap: 2px; }
   html.game-locked .cricket .lv-dart, html.game-locked .cricket .lv-none { height: 22px; }
+  html.game-locked .cricket .last-visits.many ~ .board .b-cell { height: 23px; }
+  html.game-locked .cricket .last-visits.many { gap: 4px; }
   html.game-locked .cricket .actions button { height: 40px; }
 }
 

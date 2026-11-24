@@ -343,14 +343,17 @@ export default {
       if (s.phase === 'bull' || !s.players.length) return null;
       return s.prev && s.players[s.prev.p] ? s.prev : null;
     });
-    // Points each player gained in the latest visit (the one in progress, else the previous one).
+    // Points each player gained in the latest visit that scored.
     const rise = computed(() => {
       const s = g.value;
       const out = s.players.map(() => 0);
-      const v = s.visit.length && !s.legOver ? s.visit : (s.prev && s.prev.darts) || [];
-      v.forEach((d) => {
-        Object.values(d.to || {}).forEach((q) => { if (out[q] !== undefined) out[q] += d.each || 0; });
+      const add = (darts, into) => (darts || []).forEach((d) => {
+        Object.values(d.to || {}).forEach((q) => { if (into[q] !== undefined) into[q] += d.each || 0; });
       });
+      // The turn in progress once it has scored; until then keep showing the previous turn's points.
+      if (s.visit.length && !s.legOver) add(s.visit, out);
+      if (out.some(Boolean)) return out;
+      add(s.prev && s.prev.darts, out);
       return out;
     });
     const visitPoints = (i) => (g.value.lastVisits[i] || []).reduce((a, d) => a + (d.gave || 0), 0);

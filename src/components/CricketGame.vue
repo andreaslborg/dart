@@ -683,6 +683,10 @@ button:disabled {
 .page-title {
   margin: 0;
   flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-family: var(--display);
   font-weight: 800;
   font-size: 26px;

@@ -98,7 +98,6 @@
                 <span v-for="(d, k) in (g.lastVisits[i] || [])" :key="'lvd' + i + k" class="lv-dart" :class="{ miss: !d.marked }">{{ dartLabel(d) }}</span>
                 <span v-if="!(g.lastVisits[i] || []).length" class="lv-none">Ingen kast endnu</span>
               </span>
-              <span v-if="visitPoints(i)" class="lv-pts">{{ isCutGame ? `+${visitPoints(i)} til andre` : `+${visitPoints(i)}` }}</span>
             </span>
           </div>
         </section>
@@ -112,7 +111,7 @@
               class="b-player" :class="{ active: i === g.turn && g.phase === 'play' && !g.legOver }" :style="{ '--c': colors[i] }"
             >
               <span class="b-pname"><span class="dot" aria-hidden="true"></span>{{ p.name }}</span>
-              <span class="b-points">{{ g.points[i] }}</span>
+              <span class="b-points">{{ g.points[i] }}<span v-if="rise[i]" class="b-rise" :aria-label="`plus ${rise[i]} i seneste runde`">+{{ rise[i] }}</span></span>
               <span class="b-legs">{{ ranks[i] }}. plads</span>
             </span>
           </div>
@@ -344,6 +343,16 @@ export default {
       if (s.phase === 'bull' || !s.players.length) return null;
       return s.prev && s.players[s.prev.p] ? s.prev : null;
     });
+    // Points each player gained in the latest visit (the one in progress, else the previous one).
+    const rise = computed(() => {
+      const s = g.value;
+      const out = s.players.map(() => 0);
+      const v = s.visit.length && !s.legOver ? s.visit : (s.prev && s.prev.darts) || [];
+      v.forEach((d) => {
+        Object.values(d.to || {}).forEach((q) => { if (out[q] !== undefined) out[q] += d.each || 0; });
+      });
+      return out;
+    });
     const visitPoints = (i) => (g.value.lastVisits[i] || []).reduce((a, d) => a + (d.gave || 0), 0);
     // On a shared phone (local) nobody is "me"; online it's this phone's seat, vs the bot it's player 1.
     const isMe = (i) => {
@@ -463,7 +472,8 @@ export default {
       st.marks += res.marked;
       if (m === 3 && res.marked > 0) st.triples += 1;
       st.given += res.gave;
-      s.visit.push({ t: t || 0, m: t ? m : 0, marked: res.marked, gave: res.gave });
+      // `to` = who got the points (the thrower in normal Cricket, the opponents in cut-throat), `each` = per player.
+      s.visit.push({ t: t || 0, m: t ? m : 0, marked: res.marked, gave: res.gave, to: res.to, each: res.to.length ? res.gave / res.to.length : 0 });
       const w = legWinner(s);
       if (w >= 0) {
         finishLeg(w);
@@ -617,7 +627,7 @@ export default {
 
     return {
       g, isCutGame, backLink, colors, mySeat, mult, flash, bullLabel, bullRes, targets, inGame, modeLabel, ranks, canInput, turnTag, waitText,
-      lastVisitText, lastShown, recentHit, visitPoints, isMe, statRows, canUndo,
+      lastVisitText, lastShown, recentHit, visitPoints, isMe, rise, statRows, canUndo,
       beginPlay, canBull, bullVisible, setBull, bullRethrow, leave,
       allowed, isDead, isNextForTurn, markText, targetName, dartLabel, enter, endVisitEarly, undoDart, nextLeg, continueMatch, legLeaders, rematch, quitMatch,
     };
@@ -1394,6 +1404,14 @@ button:disabled {
   width: 8px;
   height: 8px;
   flex-basis: 8px;
+}
+
+.b-rise {
+  margin-left: 3px;
+  font-size: 15px;
+  font-weight: 800;
+  vertical-align: super;
+  color: var(--c);
 }
 
 .b-points {

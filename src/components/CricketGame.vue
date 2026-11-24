@@ -111,7 +111,7 @@
               class="b-player" :class="{ active: i === g.turn && g.phase === 'play' && !g.legOver }" :style="{ '--c': colors[i] }"
             >
               <span class="b-pname"><span class="dot" aria-hidden="true"></span>{{ p.name }}</span>
-              <span class="b-points">{{ g.points[i] }}<span v-if="rise[i]" class="b-rise" :aria-label="`plus ${rise[i]} i seneste runde`">+{{ rise[i] }}</span></span>
+              <span class="b-points"><span :key="'pv' + i + (riseShown[i] ? riseShown[i].key : '')" class="b-val" :class="{ bump: riseShown[i] }">{{ g.points[i] }}</span><transition name="rise"><span v-if="riseShown[i]" :key="riseShown[i].key" class="b-rise" :aria-label="`plus ${riseShown[i].amount}`">+{{ riseShown[i].amount }}</span></transition></span>
               <span class="b-legs">{{ ranks[i] }}. plads</span>
             </span>
           </div>
@@ -623,14 +623,36 @@ export default {
       if (g.value.mode === 'online' && inGame.value) autoOpen.suppressed = true;
     };
 
+    // "+40" pops up next to the score that rose and fades out after 5 seconds.
+    const RISE_MS = 5000;
+    const riseShown = ref([]);
+    const riseTimers = [];
+    let riseSerial = 0;
+    watch(rise, (now, before) => {
+      now.forEach((amount, i) => {
+        if (!amount || amount === (before || [])[i]) return;
+        riseSerial += 1;
+        const shown = riseShown.value.slice();
+        shown[i] = { amount, key: riseSerial };
+        riseShown.value = shown;
+        clearTimeout(riseTimers[i]);
+        riseTimers[i] = setTimeout(() => {
+          const next = riseShown.value.slice();
+          next[i] = null;
+          riseShown.value = next;
+        }, RISE_MS);
+      });
+    });
+
     onUnmounted(() => {
+      riseTimers.forEach(t => clearTimeout(t));
       stopTimers();
       if (stopOnline) stopOnline();
     });
 
     return {
       g, isCutGame, backLink, colors, mySeat, mult, flash, bullLabel, bullRes, targets, inGame, modeLabel, ranks, canInput, turnTag, waitText,
-      lastVisitText, lastShown, recentHit, visitPoints, isMe, rise, statRows, canUndo,
+      lastVisitText, lastShown, recentHit, visitPoints, isMe, rise, riseShown, statRows, canUndo,
       beginPlay, canBull, bullVisible, setBull, bullRethrow, leave,
       allowed, isDead, isNextForTurn, markText, targetName, dartLabel, enter, endVisitEarly, undoDart, nextLeg, continueMatch, legLeaders, rematch, quitMatch,
     };
@@ -1414,11 +1436,60 @@ button:disabled {
 }
 
 .b-rise {
+  display: inline-block;
   margin-left: 3px;
   font-size: 15px;
   font-weight: 800;
   vertical-align: super;
   color: var(--c);
+}
+
+.b-val {
+  display: inline-block;
+}
+
+.b-val.bump {
+  animation: score-bump 0.7s ease-out;
+}
+
+@keyframes score-bump {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.22); color: var(--c); }
+  100% { transform: scale(1); }
+}
+
+.rise-enter-active {
+  animation: rise-in 0.55s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.rise-leave-active {
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.rise-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+@keyframes rise-in {
+  0% { opacity: 0; transform: translateY(10px) scale(0.5); }
+  60% { opacity: 1; transform: translateY(-4px) scale(1.3); }
+  100% { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .b-val.bump,
+  .rise-enter-active {
+    animation: none;
+  }
+
+  .rise-leave-active {
+    transition: opacity 0.3s ease;
+  }
+
+  .rise-leave-to {
+    transform: none;
+  }
 }
 
 .b-points {

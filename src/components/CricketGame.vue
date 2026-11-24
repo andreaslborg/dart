@@ -5,7 +5,7 @@
         <router-link :to="backLink" class="icon-link" aria-label="Tilbage" title="Tilbage" @click="leave">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
         </router-link>
-        <h1 class="page-title">{{ isCutGame ? 'CUT-THROAT' : 'CRICKET' }}</h1>
+        <h1 class="page-title" :class="{ long: isCutGame }">{{ isCutGame ? 'CUT-THROAT' : 'CRICKET' }}</h1>
         <div v-if="inGame" class="pill">{{ modeLabel }}</div>
         <LockButton :available="inGame" />
       </header>
@@ -700,6 +700,11 @@ button:disabled {
   align-items: center;
   gap: 12px;
   min-height: 44px;
+}
+
+.page-title.long {
+  font-size: 21px;
+  letter-spacing: 0.02em;
 }
 
 .page-title {

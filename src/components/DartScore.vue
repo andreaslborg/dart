@@ -92,7 +92,7 @@
           <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /></svg>
           <h2 class="idle-title">Ingen kamp i gang</h2>
           <div v-if="lastMatch" class="idle-last">
-            <span class="idle-label">SENESTE KAMP</span>
+            <span class="idle-label">SENESTE KAMP{{ lastMatch.game ? ` · ${lastMatch.game}` : '' }}</span>
             <div class="idle-result">
               <span :class="{ won: lastMatch.p1Legs > lastMatch.p2Legs }">{{ lastMatch.p1Name }}</span>
               <span class="idle-legs">{{ lastMatch.p1Legs }}<span class="sep">–</span>{{ lastMatch.p2Legs }}</span>
@@ -328,7 +328,33 @@ export default {
     const bullsUp = ref(null);
     // Set by "Afslut kamp": the board is cleared and waits for a new match.
     const matchEnded = ref(false);
-    const lastMatch = ref(null);
+    // The idle screen shows the newest of the last X01 match and the last online Cricket match.
+    const x01LastMatch = ref(null);
+    const cricketLast = ref(null);
+    const lastMatch = computed(() => {
+      const x = x01LastMatch.value;
+      const c = cricketLast.value;
+      if (!c) return x;
+      if (x && (x.endedAt || 0) >= c.endedAt) return x;
+      return c;
+    });
+    let stopCricketHistory = null;
+    onMounted(() => {
+      stopCricketHistory = onValue(firebaseRef(database, 'history/cricket'), (snap) => {
+        const all = Object.values(snap.val() || {}).filter(m => m && m.mode === 'online' && m.players && m.players.p1 && m.players.p2);
+        const m = all.sort((a, b) => (b.updatedAt || b.startedAt || 0) - (a.updatedAt || a.startedAt || 0))[0];
+        cricketLast.value = m ? {
+          p1Name: m.players.p1.name,
+          p2Name: m.players.p2.name,
+          p1Legs: m.players.p1.legs || 0,
+          p2Legs: m.players.p2.legs || 0,
+          saved: true,
+          game: m.variant === 'standard' ? 'CRICKET' : 'CUT-THROAT',
+          endedAt: m.updatedAt || m.startedAt || 0,
+        } : null;
+      }, () => {});
+    });
+    onUnmounted(() => { if (stopCricketHistory) stopCricketHistory(); });
     const presetScores = [201, 301, 501, 701, 1000];
 
     // Display helpers for the redesigned UI
@@ -543,7 +569,7 @@ export default {
           startScore.value = data.startScore || 501;
           matchStarter.value = data.matchStarter === 1 || data.matchStarter === 2 ? data.matchStarter : null;
           matchEnded.value = Boolean(data.matchEnded);
-          lastMatch.value = data.lastMatch || null;
+          x01LastMatch.value = data.lastMatch || null;
           bullsUp.value = data.bullsUp && data.bullsUp.purpose ? data.bullsUp : null;
           player1DoubleDarts.value = data.player1DoubleDarts || [];
           player2DoubleDarts.value = data.player2DoubleDarts || [];
